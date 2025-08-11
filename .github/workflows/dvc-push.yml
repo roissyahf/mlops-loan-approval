@@ -1,0 +1,39 @@
+name: DVC Push
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  dvc-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install DVC
+        run: |
+          python -m pip install --upgrade pip
+          pip install "dvc[http]"
+
+      - name: Configure DagsHub auth (DVC remote)
+        env:
+          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          dvc remote modify dagshub auth basic
+          dvc remote modify dagshub user "$DAGSHUB_USERNAME"
+          dvc remote modify dagshub --local password "$DAGSHUB_TOKEN"
+
+      - name: Quick CI check (no changes expected)
+        run: dvc status -c
+
+      - name: DVC push
+        run: dvc push
