@@ -1,0 +1,27 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: ../docker/Dockerfile.frontend
+    ports:
+      - "3001:3001"
+    depends_on:
+      - api
+
+  api:
+    build:
+      context: ./api
+      dockerfile: ../docker/Dockerfile.api
+    ports:
+      - "8000:8000"
+    depends_on:
+      - model
+    environment:
+      MODEL_URL: http://model:5000/predict
+
+  model:
+    build:
+      context: ./model
+      dockerfile: ../docker/Dockerfile.model
+    ports:
+      - "5000:5000"

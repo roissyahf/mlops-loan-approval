@@ -1,0 +1,65 @@
+# ------------------------
+# Unused files
+# ------------------------
+/model/t-download-artifacts.py
+/model/t-regist-model.py
+/model/t-verify-model-registry.py
+/model/t-get_raw_sample_input.py
+
+# ------------------------
+# Python cache & build files
+# ------------------------
+__pycache__/
+*.py[cod]
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# ------------------------
+# Virtual environments
+# ------------------------
+.venv/
+venv/
+env/
+ENV/
+
+# ------------------------
+# Environment & credentials
+# ------------------------
+.env
+*.env
+
+# ------------------------
+# Logs
+# ------------------------
+*.log
+logs/
+*.out
+*.err
+
+# ------------------------
+# DVC cache & temp
+# ------------------------
+.dvc/cache/
+.dvc/tmp/
+
+# ------------------------
+# DVC-tracked data & model files (actual large content)
+# The corresponding .dvc pointer files will still be tracked by Git
+# ------------------------
+data/raw/*
+!data/raw/*.dvc
+
+data/processed/*
+!data/processed/*.dvc
+
+model/model.pkl
+!model/model.pkl.dvc
+
+# ------------------------
+# MLflow local artifacts
+# ------------------------
+mlruns/
+!mlruns/.gitkeep
