@@ -17,13 +17,15 @@ import matplotlib.pyplot as plt
 load_dotenv()
 
 # set dagshub repository
-dagshub.init(repo_owner='roissyahfk', repo_name='MLOps-Loan-Approval', mlflow=True)
+dagshub.init(repo_owner=os.getenv("MLFLOW_TRACKING_USERNAME"),
+             repo_name='MLOps-Loan-Approval',
+             mlflow=True)
 
 # set tracking URI
 mlflow.set_tracking_uri(os.getenv("MLFLOW_TRACKING_URI"))
 
 # set experiment name
-mlflow.set_experiment("Loan Approval Model Experiment")
+mlflow.set_experiment(os.getenv("MLFLOW_EXPERIMENT_NAME"))
 
 # read train and test set
 train_path = os.path.join(os.getcwd(), '../data/processed/train_data.csv')

@@ -1,0 +1,136 @@
+:root {
+  --primary-color: #F68537;
+  --primary-dark: #d26e2f;
+  --background: #fff;
+  --accent: #fef4ee;
+  --text: #333;
+}
+
+body {
+  font-family: 'Segoe UI', sans-serif;
+  background: var(--background);
+  color: var(--text);
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 25px 30px;
+  background: var(--accent);
+  border-radius: 12px;
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.05);
+}
+
+h1 {
+  color: var(--primary-color);
+  font-size: 26px;
+  margin-bottom: 8px;
+}
+
+.description {
+  margin-bottom: 24px;
+  color: #555;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.full-width {
+  grid-column: span 2;
+}
+
+label {
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+input[type="number"],
+select {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 15px;
+}
+
+input:focus,
+select:focus {
+  border-color: var(--primary-color);
+  outline: none;
+}
+
+.submit-button {
+  background-color: var(--primary-color);
+  color: #fff;
+  padding: 12px 20px;
+  margin-top: 20px;
+  font-size: 16px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+  width: 100%;
+}
+
+.submit-button:hover {
+  background-color: var(--primary-dark);
+}
+
+#result {
+  margin-top: 30px;
+  font-size: 16px;
+}
+
+.result-box {
+  padding: 14px;
+  font-size: 18px;
+  font-weight: bold;
+  border-radius: 8px;
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.accepted {
+  background-color: #dff0d8;
+  color: #3c763d;
+}
+
+.rejected {
+  background-color: #f2dede;
+  color: #a94442;
+}
+
+.confidence,
+.latency {
+  margin: 5px 0;
+  color: #444;
+}
+
+.info {
+  color: #777;
+}
+
+.error {
+  color: #b00020;
+  font-weight: bold;
+  margin-top: 20px;
+}
+
+@media (max-width: 700px) {
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .full-width {
+    grid-column: span 1;
+  }
+}

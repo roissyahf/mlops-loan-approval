@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Loan Approval Predictor</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="container">
+    <h1>🏦 Predict Loan Approval</h1>
+    <p class="description">
+      This app predicts whether a loan application will be <strong>Accepted</strong> or <strong>Rejected</strong>.
+    </p>
+
+    <form id="prediction-form">
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="person_age">Applicant's Age</label>
+          <input type="number" id="person_age" name="person_age" min="18" max="75" required />
+        </div>
+
+        <div class="form-group">
+          <label for="person_income">Applicant's Income</label>
+          <input type="number" id="person_income" name="person_income" min="8000" max="3000000" step="100" required />
+        </div>
+
+        <div class="form-group">
+          <label for="loan_amnt">Loan Amount</label>
+          <input type="number" id="loan_amnt" name="loan_amnt" min="400" max="100000" required />
+        </div>
+
+        <div class="form-group">
+          <label for="loan_percent_income">Loan Percent Income</label>
+          <input type="number" id="loan_percent_income" name="loan_percent_income" step="0.0001" min="0.0001" max="0.7" required />
+        </div>
+
+        <div class="form-group">
+          <label for="loan_int_rate">Loan Interest Rate</label>
+          <input type="number" id="loan_int_rate" name="loan_int_rate" min="3" max="22" step="0.01" required />
+        </div>
+
+        <div class="form-group">
+          <label for="credit_score">Credit Score</label>
+          <input type="number" id="credit_score" name="credit_score" min="300" max="850" required />
+        </div>
+
+        <div class="form-group full-width">
+          <label for="previous_loan_defaults_on_file">Previous Loan Default?</label>
+          <select id="previous_loan_defaults_on_file" name="previous_loan_defaults_on_file" required>
+            <option value="" disabled selected>Select an option</option>
+            <option value="Yes">Yes</option>
+            <option value="No">No</option>
+          </select>
+        </div>
+      </div>
+
+      <button type="submit" class="submit-button">🔍 Predict Loan Approval</button>
+    </form>
+
+    <div id="result"></div>
+  </div>
+
+  <script>
+    document.getElementById("prediction-form").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const resultDiv = document.getElementById("result");
+      resultDiv.innerHTML = "<p class='info'>🔄 Sending request...</p>";
+
+      const formData = new FormData(e.target);
+      const payload = {};
+      formData.forEach((value, key) => (payload[key] = value));
+
+      const API_BASE_URL = "http://localhost:8000"; // later for production, use the actual API URL
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/predict`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) throw new Error("API request failed");
+        const data = await response.json();
+
+        const prediction = data.prediction;
+        const confidence = data.probabilities?.[prediction] || 0;
+        const latency = (data.latency || 0) * 1000;
+
+        resultDiv.innerHTML = `
+          <div class="result-box ${prediction === 1 ? "accepted" : "rejected"}">
+            ${prediction === 1 ? "🔥 Loan Approved" : "🚫 Loan Rejected"}
+          </div>
+          <p class="confidence">📊 Confidence Score: ${(confidence * 100).toFixed(2)}%</p>
+          <p class="latency">⏱️ Latency: ${latency.toFixed(2)} ms</p>
+        `;
+      } catch (err) {
+        resultDiv.innerHTML = `<p class="error">❌ Error: ${err.message}</p>`;
+      }
+    });
+  </script>
+</body>
+</html>
