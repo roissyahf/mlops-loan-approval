@@ -1,0 +1,56 @@
+name: CI/CD - API
+on:
+  push:
+    paths: ['api/**', '.github/workflows/api.yml']
+  workflow_call: {}
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: ${{ secrets.GCP_REGION }}
+  REPO: ${{ secrets.ARTIFACT_REPO }}
+  SVC_API: loan-api
+  SVC_MODEL: loan-model
+  IMAGE_API: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.ARTIFACT_REPO }}/loan-api:latest
+  SA_API: sa-api@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions: { contents: read, id-token: write }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with: { credentials_json: ${{ secrets.GCP_SA_KEY }} }
+      - uses: google-github-actions/setup-gcloud@v1
+
+      - name: Read MODEL_URL
+        id: model
+        run: |
+          MODEL_URL=$(gcloud run services describe ${{ env.SVC_MODEL }} --region ${{ env.REGION }} \
+            --format='value(status.url)')
+          echo "url=$MODEL_URL" >> $GITHUB_OUTPUT
+
+      - run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v5
+        with: { context: ./api, push: true, tags: ${{ env.IMAGE_API }} }
+
+      - name: Deploy Cloud Run (API)
+        uses: google-github-actions/deploy-cloudrun@v1
+        with:
+          service: ${{ env.SVC_API }}
+          image: ${{ env.IMAGE_API }}
+          region: ${{ env.REGION }}
+          env_vars: MODEL_URL=${{ steps.model.outputs.url }}
+          flags: >
+            --ingress=all
+            --allow-unauthenticated
+            --min-instances=1
+            --concurrency=50
+            --cpu=1 --memory=512Mi
+
+      - name: Grant API SA invoke on Model
+        run: |
+          gcloud run services add-iam-policy-binding ${{ env.SVC_MODEL }} \
+            --region ${{ env.REGION }} \
+            --member "serviceAccount:sa-api@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
+            --role "roles/run.invoker"

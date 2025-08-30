@@ -1,0 +1,25 @@
+name: CI/CD Orchestrator
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  model:
+    uses: ./.github/workflows/model.yml
+    secrets: inherit
+
+  api:
+    needs: model
+    uses: ./.github/workflows/api.yml
+    secrets: inherit
+
+  frontend:
+    needs: api
+    uses: ./.github/workflows/frontend.yml
+    secrets: inherit
+
+  monitoring:
+    needs: model
+    uses: ./.github/workflows/monitoring.yml
+    secrets: inherit
