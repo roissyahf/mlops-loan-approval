@@ -1,10 +1,25 @@
 # ------------------------
+# Push later (WIP)
+# ------------------------
+.github/workflows/model.yml
+.github/workflows/api.yml
+.github/workflows/frontend.yml
+.github/workflows/monitoring.yml
+
+# ------------------------
 # Unused files
 # ------------------------
 /model/t-download-artifacts.py
 /model/t-regist-model.py
 /model/t-verify-model-registry.py
 /model/t-get_raw_sample_input.py
+
+/monitoring/X-library-check.py
+/monitoring/drift_report.html
+/monitoring/drit_tests.html
+/monitoring/model_drift_report.html
+
+/data/current/current.jsonl
 
 # ------------------------
 # Python cache & build files

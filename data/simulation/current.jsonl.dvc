@@ -1,0 +1,5 @@
+outs:
+- md5: d7f57855771a56338b30b0de3a8d0fc3
+  size: 7765
+  hash: md5
+  path: current.jsonl

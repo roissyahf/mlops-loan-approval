@@ -1,0 +1,6 @@
+[core]
+    remote = dagshub
+['remote "dagshub"']
+    url = https://dagshub.com/roissyahfk/Loan_Approval_Model.dvc
+    auth = basic
+    user = roissyahfk

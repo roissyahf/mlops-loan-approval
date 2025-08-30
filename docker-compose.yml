@@ -16,8 +16,14 @@ services:
       - "8000:8000"
     depends_on:
       - model
+    volumes:
+      - ./data:/app/data:rw
     environment:
-      MODEL_URL: http://model:5000/predict
+      - MODEL_URL=http://model:5000/predict
+      - LOG_PATH=/app/data/simulation/current.jsonl
+      - MODEL_NAME=loan-xgb-tuning
+      - MODEL_VERSION=prod-1
+      - FEATURE_PIPELINE_VERSION=local-dev
 
   model:
     build:
@@ -25,3 +31,16 @@ services:
       dockerfile: ../docker/Dockerfile.model
     ports:
       - "5000:5000"
+
+  loan-monitor:
+    build:
+      context: ./monitoring
+      dockerfile: ../docker/Dockerfile.monitoring
+    ports:
+      - "8003:5003"
+    environment:
+      - REF_DATA_PATH=/app/data/simulation/reference_data.csv
+      - CURR_DATA_PATH=/app/data/simulation/current_data.csv
+      - PORT=5003
+    volumes:
+      - ./data:/app/data:rw
