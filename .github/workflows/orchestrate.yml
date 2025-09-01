@@ -4,9 +4,11 @@ on:
   push:
     branches: [ main ]
 
-jobs:
-  permissions: { contents: read, id-token: write }
+permissions:
+  id-token: write
+  contents: read
 
+jobs:
   model:
     uses: ./.github/workflows/model.yml
     secrets: inherit
