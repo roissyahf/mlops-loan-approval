@@ -1,8 +1,10 @@
 name: CI/CD - API
+
 on:
   push:
     paths: ['api/**', '.github/workflows/api.yml']
   workflow_call: {}
+
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: ${{ secrets.GCP_REGION }}
@@ -10,7 +12,6 @@ env:
   SVC_API: loan-api
   SVC_MODEL: loan-model
   IMAGE_API: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.ARTIFACT_REPO }}/loan-api:latest
-  SA_API: sa-api@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
 
 jobs:
   deploy:
@@ -55,15 +56,18 @@ jobs:
           region: ${{ env.REGION }}
           env_vars: MODEL_URL=${{ steps.model.outputs.url }}
           flags: >
+            --port=8000
             --ingress=all
             --allow-unauthenticated
             --min-instances=1
             --concurrency=50
             --cpu=1 --memory=512Mi
+            --service-account=sa-model@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
+            --timeout=300
 
       - name: Grant API SA invoke on Model
         run: |
           gcloud run services add-iam-policy-binding ${{ env.SVC_MODEL }} \
             --region ${{ env.REGION }} \
-            --member "serviceAccount:sa-api@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com" \
+            --member "serviceAccount:sa-api@${{ secrets.PROJECT_ID }}.iam.gserviceaccount.com" \
             --role "roles/run.invoker"

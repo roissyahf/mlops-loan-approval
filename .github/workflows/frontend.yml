@@ -1,8 +1,10 @@
 name: CI/CD - Frontend
+
 on:
   push:
     paths: ['frontend/**', '.github/workflows/frontend.yml']
   workflow_call: {}
+
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: ${{ secrets.GCP_REGION }}
@@ -54,8 +56,11 @@ jobs:
           region: ${{ env.REGION }}
           env_vars: API_URL=${{ steps.api.outputs.url }}
           flags: >
+            --port=3001
             --ingress=all
             --allow-unauthenticated
             --min-instances=0
             --concurrency=80
             --cpu=1 --memory=256Mi
+            --service-account=sa-model@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
+            --timeout=300

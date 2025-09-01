@@ -1,8 +1,10 @@
 name: CI/CD - Model
+
 on:
   push:
     paths: ['model/**', '.github/workflows/model.yml']
   workflow_call: {}
+
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: ${{ secrets.GCP_REGION }}
@@ -46,11 +48,14 @@ jobs:
           image: ${{ env.IMAGE }}
           region: ${{ env.REGION }}
           flags: >
+            --port=5000
             --ingress=internal-and-cloud-load-balancing
             --no-allow-unauthenticated
             --min-instances=1
             --concurrency=20
             --cpu=1 --memory=512Mi
+            --service-account=sa-model@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
+            --timeout=300
 
       - name: Output MODEL_URL
         id: model

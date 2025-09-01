@@ -1,7 +1,10 @@
 name: CI/CD - Monitoring
+
 on:
   push:
     paths: ['monitoring/**', 'data/simulation/**', 'Docker/Dockerfile.monitoring', '.github/workflows/monitoring.yml']
+  workflow_call: {}
+
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: ${{ secrets.GCP_REGION }}
@@ -44,10 +47,11 @@ jobs:
           image: ${{ env.IMAGE }}
           region: ${{ env.REGION }}
           flags: >
+            --port=5003
             --ingress=internal-and-cloud-load-balancing
             --no-allow-unauthenticated
-            --port=5003
             --min-instances=0
             --concurrency=20
             --cpu=1 --memory=512Mi
-            --service-account=${{ env.SA_MONITOR }}
+            --service-account=sa-model@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
+            --timeout=300

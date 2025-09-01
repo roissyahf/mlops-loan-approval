@@ -12,4 +12,8 @@ COPY model/ /app/
 # Copy model.pkl
 COPY model/model.pkl /app/model.pkl
 
+ENV PORT=5000
+
+EXPOSE 5000
+
 CMD ["python", "app.py"]

@@ -66,9 +66,6 @@ data/raw/*
 data/processed/*
 !data/processed/*.dvc
 
-model/model.pkl
-!model/model.pkl.dvc
-
 # ------------------------
 # MLflow local artifacts
 # ------------------------
