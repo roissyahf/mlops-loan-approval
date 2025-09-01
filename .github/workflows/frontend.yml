@@ -35,10 +35,16 @@ jobs:
             --format='value(status.url)')
           echo "url=$API_URL" >> $GITHUB_OUTPUT
 
-      - run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
-      - uses: docker/setup-buildx-action@v3
-      - uses: docker/build-push-action@v5
-        with: { context: ./frontend, push: true, tags: ${{ env.IMAGE_FE }} }
+      - name: Configure Docker
+        run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and push model image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./docker/Dockerfile.frontend
+          push: true
+          tags: ${{ env.IMAGE_FE }}
 
       - name: Deploy Cloud Run (Frontend)
         uses: google-github-actions/deploy-cloudrun@v1

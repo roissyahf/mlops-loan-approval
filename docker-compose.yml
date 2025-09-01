@@ -2,7 +2,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: ../docker/Dockerfile.frontend
+      dockerfile: ../docker/Dockerfile.local.frontend
     ports:
       - "3001:3001"
     depends_on:
@@ -11,7 +11,7 @@ services:
   api:
     build:
       context: ./api
-      dockerfile: ../docker/Dockerfile.api
+      dockerfile: ../docker/Dockerfile.local.api
     ports:
       - "8000:8000"
     depends_on:
@@ -28,16 +28,16 @@ services:
   model:
     build:
       context: ./model
-      dockerfile: ../docker/Dockerfile.model
+      dockerfile: ../docker/Dockerfile.local.model
     ports:
       - "5000:5000"
 
   loan-monitor:
     build:
       context: ./monitoring
-      dockerfile: ../docker/Dockerfile.monitoring
+      dockerfile: ../docker/Dockerfile.local.monitoring
     ports:
-      - "8003:5003"
+      - "5003:5003"
     environment:
       - REF_DATA_PATH=/app/data/simulation/reference_data.csv
       - CURR_DATA_PATH=/app/data/simulation/current_data.csv
