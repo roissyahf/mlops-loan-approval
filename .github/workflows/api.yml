@@ -12,6 +12,7 @@ env:
   SVC_API: loan-api
   SVC_MODEL: loan-model
   IMAGE_API: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.ARTIFACT_REPO }}/loan-api:latest
+  SA_API: sa-api@${{ secrets.GCP_PROJECT_ID }}.iam.gserviceaccount.com
 
 jobs:
   deploy:
@@ -69,5 +70,5 @@ jobs:
         run: |
           gcloud run services add-iam-policy-binding ${{ env.SVC_MODEL }} \
             --region ${{ env.REGION }} \
-            --member "serviceAccount:sa-api@${{ secrets.PROJECT_ID }}.iam.gserviceaccount.com" \
+            --member "serviceAccount:${{ env.SA_API }}" \
             --role "roles/run.invoker"
