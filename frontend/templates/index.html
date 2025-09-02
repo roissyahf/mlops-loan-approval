@@ -71,7 +71,9 @@
       const payload = {};
       formData.forEach((value, key) => (payload[key] = value));
 
-      const API_BASE_URL = "http://localhost:8000"; // later for production, use the actual API URL
+      const API_BASE_URL = "api_url"; 
+      // use http://localhost:8000 for local development
+      // for production, use the actual API URL that has been deployed
 
       try {
         const response = await fetch(`${API_BASE_URL}/predict`, {

@@ -48,7 +48,6 @@ jobs:
           image: ${{ env.IMAGE }}
           region: ${{ env.REGION }}
           flags: >
-            --port=5000
             --ingress=internal-and-cloud-load-balancing
             --no-allow-unauthenticated
             --min-instances=1

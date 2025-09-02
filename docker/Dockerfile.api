@@ -9,8 +9,6 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt
 # Copy api service code
 COPY api/ /app/
 
-ENV PORT=8000
-
-EXPOSE 8000
+EXPOSE 8080
 
 CMD ["python", "app.py"]

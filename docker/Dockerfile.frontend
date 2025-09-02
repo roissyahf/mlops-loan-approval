@@ -9,8 +9,6 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt
 # Copy frontend service code
 COPY frontend/ /app/
 
-ENV PORT=3001
-
-EXPOSE 3001
+EXPOSE 8080
 
 CMD ["python", "app.py"]

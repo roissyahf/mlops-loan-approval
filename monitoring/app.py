@@ -43,6 +43,9 @@ def resolve_path(p: str) -> str:
 REF_DATA_PATH = resolve_path(os.getenv("REF_DATA_PATH", "data/simulation/reference_data.csv"))
 CURR_DATA_PATH = resolve_path(os.getenv("CURR_DATA_PATH", "data/simulation/current_data.csv"))
 
+@app.route("/", methods=["GET"])
+def index():
+    return "Monitoring Service is Running", 200
 
 @app.route("/health", methods=["GET"])
 def health():
@@ -115,6 +118,6 @@ def drift_html():
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", "5003"))
+    port = int(os.getenv("PORT", "8080")) # port 5003 for monitoring local development
     app.run(host="0.0.0.0", port=port)
 

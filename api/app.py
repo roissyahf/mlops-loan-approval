@@ -104,6 +104,11 @@ def log_current_row(features_dict: dict, prediction, prediction_proba=None):
     _write_jsonl(LOG_PATH, event)
 
 
+@app.route("/", methods=["GET"])
+def index():
+    return "API Service is Running", 200
+
+
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify(status="ok")
@@ -166,4 +171,5 @@ def predict_endpoint():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8000)
+    port = int(os.getenv("PORT", "8080")) # port 8000 for API local development
+    app.run(host="0.0.0.0", port=port)

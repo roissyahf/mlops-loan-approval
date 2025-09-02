@@ -14,9 +14,8 @@ COPY data/simulation/ /app/data/simulation/
 
 # Defaults (can be overridden by Cloud Run env vars)
 ENV REF_DATA_PATH=/app/data/simulation/reference_data.csv \
-    CURR_DATA_PATH=/app/data/simulation/current_data.csv \
-    PORT=5003
-
-EXPOSE 5003
+    CURR_DATA_PATH=/app/data/simulation/current_data.csv
+    
+EXPOSE 8080
 
 CMD ["python", "app.py"]

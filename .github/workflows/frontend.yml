@@ -56,7 +56,6 @@ jobs:
           region: ${{ env.REGION }}
           env_vars: API_URL=${{ steps.api.outputs.url }}
           flags: >
-            --port=3001
             --ingress=all
             --allow-unauthenticated
             --min-instances=0

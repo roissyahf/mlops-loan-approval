@@ -57,7 +57,6 @@ jobs:
           region: ${{ env.REGION }}
           env_vars: MODEL_URL=${{ steps.model.outputs.url }}
           flags: >
-            --port=8000
             --ingress=all
             --allow-unauthenticated
             --min-instances=1
