@@ -7,8 +7,6 @@ __pycache__/
 .venv
 .env
 .dvc/
-data/**/raw/**
-data/**/large/**
 artifacts/**
 mlruns/**
 notebooks/**

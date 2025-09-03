@@ -48,7 +48,7 @@ jobs:
           image: ${{ env.IMAGE }}
           region: ${{ env.REGION }}
           flags: >
-            --ingress=internal-and-cloud-load-balancing
+            --ingress=all
             --no-allow-unauthenticated
             --min-instances=1
             --concurrency=20

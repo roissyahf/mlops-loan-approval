@@ -32,7 +32,7 @@ jobs:
       - name: Configure Docker
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
-      - name: Build and push monitoring image
+      - name: Build and push monitoring image # need to pull csv, before building image
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -47,7 +47,7 @@ jobs:
           image: ${{ env.IMAGE }}
           region: ${{ env.REGION }}
           flags: >
-            --ingress=internal-and-cloud-load-balancing
+            --ingress=all
             --no-allow-unauthenticated
             --min-instances=0
             --concurrency=20

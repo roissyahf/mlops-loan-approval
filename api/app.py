@@ -14,7 +14,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ---- Config ----
-MODEL_SERVICE_URL = os.environ.get("MODEL_URL", "http://model:5000/predict")
+MODEL_SERVICE_URL = os.environ.get("API_URL", "")  # set by Cloud Run deploy
+#MODEL_SERVICE_URL = os.environ.get("MODEL_URL", "http://model:5000/predict") # for local deployment
 MODEL_SERVICE_URL = (MODEL_SERVICE_URL or "").strip()
 logger.info(f"Using MODEL_URL={MODEL_SERVICE_URL!r}")
 
