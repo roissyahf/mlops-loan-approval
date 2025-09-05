@@ -7,6 +7,8 @@ import json
 import uuid
 import time
 from datetime import datetime, timezone
+from google.oauth2 import id_token
+from google.auth.transport.requests import Request
 
 app = Flask(__name__)
 CORS(app)
@@ -34,6 +36,10 @@ SCHEMA_VERSION = "1.0"
 logger.info(f"Using MODEL_URL={MODEL_SERVICE_URL!r}")
 logger.info(f"Logging to {LOG_PATH!r}")
 logger.info(f"Model meta: name={MODEL_NAME!r}, version={MODEL_VERSION!r}, pipeline={FEATURE_PIPELINE_VERSION!r}")
+
+def model_id_token():
+    return id_token.fetch_id_token(Request(), MODEL_SERVICE_URL)
+
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -112,14 +118,17 @@ def index():
 
 @app.route("/health", methods=["GET"])
 def health():
-    return jsonify(status="ok")
+    return jsonify(status="ok", model_url=MODEL_SERVICE_URL), 200
 
 
-@app.route("/predict", methods=["POST"])
+@app.route("/predict", methods=["POST", "OPTIONS"])
 def predict_endpoint():
     """
     Make prediction, also Appends one JSON object per request to LOG_PATH (default ./data/simulation/current.jsonl)
     """
+    if request.method == "OPTIONS":
+        return ("", 204)
+
     payload = request.get_json()
     logger.info(f"Received input: {payload}")
 
@@ -168,9 +177,10 @@ def predict_endpoint():
 
     except Exception as e:
         logger.error(f"Model service error: {e}")
-        return jsonify({"error": "Model service failed"}), 500
+        return jsonify({"error": "Model service failed",
+                        "details": str(e)}), 500
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", "8080")) # port 8000 for API local development
+    port = int(os.getenv("PORT", 8080)) # port 8000 for API local development
     app.run(host="0.0.0.0", port=port)
