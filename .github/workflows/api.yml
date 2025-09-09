@@ -36,7 +36,12 @@ jobs:
         run: |
           MODEL_URL=$(gcloud run services describe ${{ env.SVC_MODEL }} --region ${{ env.REGION }} \
             --format='value(status.url)')
-          echo "url=$MODEL_URL" >> $GITHUB_OUTPUT
+          if [ -z "$MODEL_URL" ]; then
+          echo "Model URL is empty. Is loan-model deployed in region ${{ env.REGION }}?" >&2
+          exit 1
+          fi
+          echo "MODEL_URL=$MODEL_URL" >> $GITHUB_ENV
+          echo "Resolved MODEL_URL=$MODEL_URL"
 
       - name: Configure Docker
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
@@ -55,7 +60,8 @@ jobs:
           service: ${{ env.SVC_API }}
           image: ${{ env.IMAGE_API }}
           region: ${{ env.REGION }}
-          env_vars: MODEL_URL=${{ steps.model.outputs.url }}
+          env_vars: |
+            MODEL_URL=${{ env.MODEL_URL }}
           flags: >
             --ingress=all
             --allow-unauthenticated
@@ -64,6 +70,11 @@ jobs:
             --cpu=1 --memory=512Mi
             --service-account=sa-model@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
             --timeout=300
+
+      - name: Verify MODEL_URL on active revision
+        run: |
+          gcloud run services describe ${{ env.SVC_API }} --region ${{ env.REGION }} \
+          --format='value(spec.template.spec.containers[0].env)'
 
       - name: Grant API SA invoke on Model
         run: |

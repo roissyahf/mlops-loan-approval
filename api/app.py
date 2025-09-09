@@ -7,8 +7,6 @@ import json
 import uuid
 import time
 from datetime import datetime, timezone
-from google.oauth2 import id_token
-from google.auth.transport.requests import Request
 
 app = Flask(__name__)
 CORS(app)
@@ -16,9 +14,10 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # ---- Config ----
-MODEL_SERVICE_URL = os.environ.get("API_URL", "")  # set by Cloud Run deploy
+MODEL_SERVICE_URL = os.environ.get("MODEL_URL", "").rstrip("/")  # set by Cloud Run deploy
 #MODEL_SERVICE_URL = os.environ.get("MODEL_URL", "http://model:5000/predict") # for local deployment
-MODEL_SERVICE_URL = (MODEL_SERVICE_URL or "").strip()
+if not MODEL_SERVICE_URL:
+    raise RuntimeError("MODEL URL is not set!")
 logger.info(f"Using MODEL_URL={MODEL_SERVICE_URL!r}")
 
 
@@ -36,9 +35,6 @@ SCHEMA_VERSION = "1.0"
 logger.info(f"Using MODEL_URL={MODEL_SERVICE_URL!r}")
 logger.info(f"Logging to {LOG_PATH!r}")
 logger.info(f"Model meta: name={MODEL_NAME!r}, version={MODEL_VERSION!r}, pipeline={FEATURE_PIPELINE_VERSION!r}")
-
-def model_id_token():
-    return id_token.fetch_id_token(Request(), MODEL_SERVICE_URL)
 
 
 def _utc_now_iso() -> str:
