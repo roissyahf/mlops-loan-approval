@@ -7,6 +7,8 @@ import json
 import uuid
 import time
 from datetime import datetime, timezone
+from google.oauth2 import id_token
+from google.auth.transport.requests import Request
 
 app = Flask(__name__)
 CORS(app)
@@ -36,6 +38,17 @@ logger.info(f"Using MODEL_URL={MODEL_SERVICE_URL!r}")
 logger.info(f"Logging to {LOG_PATH!r}")
 logger.info(f"Model meta: name={MODEL_NAME!r}, version={MODEL_VERSION!r}, pipeline={FEATURE_PIPELINE_VERSION!r}")
 
+
+def get_id_token():
+    """
+    Fetches a Google-signed ID token for the given audience (usually the target service URL).
+    """
+    try:
+        token = id_token.fetch_id_token(Request(), MODEL_SERVICE_URL)
+        return token
+    except Exception as e:
+        logger.error(f"Failed to fetch ID token for audience {MODEL_SERVICE_URL}: {e}")
+        raise
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")

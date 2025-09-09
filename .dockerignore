@@ -6,7 +6,6 @@ __pycache__/
 *.pyd
 .venv
 .env
-.dvc/
 artifacts/**
 mlruns/**
 notebooks/**

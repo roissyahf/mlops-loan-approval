@@ -7,7 +7,7 @@ COPY monitoring/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt && pip install --no-cache-dir "dvc[http]" python-dotenv
 
 # Bring data from DVC
-COPY .dvc/ .dvc/
+COPY .dvc/config .dvc/config
 COPY data/simulation/*.dvc data/simulation/
 
 # Copy monitoring service code
