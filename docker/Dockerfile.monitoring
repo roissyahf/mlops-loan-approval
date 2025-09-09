@@ -2,19 +2,21 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install deps first (better layer caching)
+# Install deps first
 COPY monitoring/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
+
+# Bring data from DVC
+COPY .dvc/ .dvc/
+COPY dvc.yaml dvc.lock ./
+COPY data/simulation/*.dvc data/simulation/
 
 # Copy monitoring service code
 COPY monitoring/ /app/
 
 # Copy simulation data into image
-COPY data/simulation/ /app/data/simulation/
-
-# Defaults (can be overridden by Cloud Run env vars)
 ENV REF_DATA_PATH=/app/data/simulation/reference_data.csv \
-    CURR_DATA_PATH=/app/data/simulation/current_data.csv
+CURR_DATA_PATH=/app/data/simulation/current_data.csv
     
 EXPOSE 8080
 

@@ -1,4 +1,4 @@
-import os
+import os, subprocess, sys
 from flask import Flask, jsonify, send_file, abort, Response
 from flask_cors import CORS
 from evidently_profile import build_report, build_classification_report, suite_json, save_suite_html
@@ -7,6 +7,44 @@ import pandas as pd
 
 app = Flask(__name__)
 CORS(app)
+
+
+# DVC bootstrap: pull CSVs at runtime
+def dvc_pull_on_start():
+    user = os.getenv("DAGSHUB_USERNAME")
+    token = os.getenv("DAGSHUB_TOKEN")
+
+    if not user or not token:
+        print("[dvc] DAGSHUB_USERNAME / DAGSHUB_TOKEN not set; skipping pull", flush=True)
+        return
+
+    # Configure DVC remote auth (scoped to container)
+    try:
+        subprocess.run(
+            ["dvc", "remote", "modify", "dagshub", "auth", "basic"],
+            check=True, capture_output=True
+        )
+        subprocess.run(
+            ["dvc", "remote", "modify", "dagshub", "user", user],
+            check=True, capture_output=True
+        )
+        subprocess.run(
+            ["dvc", "remote", "modify", "dagshub", "--local", "password", token],
+            check=True, capture_output=True
+        )
+
+        # Pull only what this service needs
+        subprocess.run(["dvc","pull",
+                        "data/simulation/reference_data.csv",
+                        "data/simulation/current_data.csv"], check=True)
+
+        print("[dvc] pull completed", flush=True)
+    except subprocess.CalledProcessError as e:
+        sys.stderr.write(f"[dvc] failed: {e}\nSTDERR: {e.stderr.decode() if e.stderr else ''}\n")
+        # Fail fast if the service is useless without data
+        sys.exit(1)
+
+dvc_pull_on_start()
 
 
 def resolve_path(p: str) -> str:
@@ -42,6 +80,11 @@ def resolve_path(p: str) -> str:
 # Defaults assume to run from project root: python monitoring/app.py
 REF_DATA_PATH = resolve_path(os.getenv("REF_DATA_PATH", "data/simulation/reference_data.csv"))
 CURR_DATA_PATH = resolve_path(os.getenv("CURR_DATA_PATH", "data/simulation/current_data.csv"))
+
+if not os.path.exists(REF_DATA_PATH):
+    raise FileNotFoundError(f"Reference data missing: {REF_DATA_PATH}")
+if not os.path.exists(CURR_DATA_PATH):
+    raise FileNotFoundError(f"Current data missing: {CURR_DATA_PATH}")
 
 @app.route("/", methods=["GET"])
 def index():

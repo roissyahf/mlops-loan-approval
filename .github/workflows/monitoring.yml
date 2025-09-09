@@ -32,7 +32,7 @@ jobs:
       - name: Configure Docker
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
-      - name: Build and push monitoring image # need to pull csv, before building image
+      - name: Build and push monitoring image
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -46,6 +46,11 @@ jobs:
           service: ${{ env.SVC }}
           image: ${{ env.IMAGE }}
           region: ${{ env.REGION }}
+          env_vars: |
+            DAGSHUB_USERNAME=${{ secrets.DAGSHUB_USERNAME }}
+            DAGSHUB_TOKEN=${{ secrets.DAGSHUB_TOKEN }}
+            REF_DATA_PATH=/app/data/simulation/reference_data.csv
+            CURR_DATA_PATH=/app/data/simulation/current_data.csv
           flags: >
             --ingress=all
             --no-allow-unauthenticated
