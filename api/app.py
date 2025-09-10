@@ -7,6 +7,7 @@ import json
 import uuid
 import time
 from datetime import datetime, timezone
+from urllib.parse import urljoin
 from google.oauth2 import id_token
 from google.auth.transport.requests import Request
 
@@ -21,7 +22,7 @@ MODEL_SERVICE_URL = os.environ.get("MODEL_URL", "").rstrip("/")  # set by Cloud 
 if not MODEL_SERVICE_URL:
     raise RuntimeError("MODEL URL is not set!")
 logger.info(f"Using MODEL_URL={MODEL_SERVICE_URL!r}")
-
+PREDICT_URL = urljoin(MODEL_SERVICE_URL + "/", "predict") 
 
 LOG_PATH = os.environ.get("LOG_PATH", "./data/simulation/current.jsonl")
 os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
@@ -49,6 +50,7 @@ def get_id_token():
     except Exception as e:
         logger.error(f"Failed to fetch ID token for audience {MODEL_SERVICE_URL}: {e}")
         raise
+
 
 def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -138,14 +140,19 @@ def predict_endpoint():
     if request.method == "OPTIONS":
         return ("", 204)
 
-    payload = request.get_json()
-    logger.info(f"Received input: {payload}")
+    payload = request.get_json(silent=True) or {}
+    aud = MODEL_SERVICE_URL
+    tok = id_token.fetch_id_token(Request(), aud)
+    #logger.info(f"Received input: {payload}")
+    logger.info("CALLING MODEL url=%s audience=%s token_len=%s",
+                PREDICT_URL, aud, len(tok) if tok else 0)
 
     request_id = str(uuid.uuid4())
     started = time.perf_counter()
 
     try:
-        response = requests.post(MODEL_SERVICE_URL, json=payload, timeout=10)
+        response = requests.post(PREDICT_URL, json=payload,
+                                 headers={"Authorization": f"Bearer {tok}", "Content-Type":"application/json"}, timeout=10)
         elapsed_ms = int((time.perf_counter() - started) * 1000)
 
         logger.info(f"Model response: {response.status_code} - {response.text}")
