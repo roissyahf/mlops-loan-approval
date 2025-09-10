@@ -32,6 +32,8 @@ def dvc_pull_on_start():
             ["dvc", "remote", "modify", "dagshub", "--local", "password", token],
             check=True, capture_output=True
         )
+        subprocess.run(
+            ["dvc","remote","list"], check=True)
 
         # Pull only what this service needs
         subprocess.run(["dvc","pull",
@@ -80,11 +82,6 @@ def resolve_path(p: str) -> str:
 # Defaults assume to run from project root: python monitoring/app.py
 REF_DATA_PATH = resolve_path(os.getenv("REF_DATA_PATH", "data/simulation/reference_data.csv"))
 CURR_DATA_PATH = resolve_path(os.getenv("CURR_DATA_PATH", "data/simulation/current_data.csv"))
-
-if not os.path.exists(REF_DATA_PATH):
-    raise FileNotFoundError(f"Reference data missing: {REF_DATA_PATH}")
-if not os.path.exists(CURR_DATA_PATH):
-    raise FileNotFoundError(f"Current data missing: {CURR_DATA_PATH}")
 
 @app.route("/", methods=["GET"])
 def index():

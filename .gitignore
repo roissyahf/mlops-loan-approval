@@ -1,6 +1,8 @@
 # ------------------------
 # Push later (WIP)
 # ------------------------
+.github/workflows/retraining-model.yml
+model/retraining.py
 
 # ------------------------
 # Unused files
