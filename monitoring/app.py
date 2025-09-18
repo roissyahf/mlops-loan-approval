@@ -15,9 +15,6 @@ DATA_READY = False
 DVC_ATTEMPTED = False
 
 def dvc_pull_async():
-    """
-    Try DVC pull in background, don't block startup
-    """
     global DATA_READY, DVC_ATTEMPTED
     
     if DVC_ATTEMPTED:
@@ -27,13 +24,27 @@ def dvc_pull_async():
     user = os.getenv("DAGSHUB_USERNAME")
     token = os.getenv("DAGSHUB_TOKEN")
 
+    logger.info(f"[dvc] Starting pull with user: {user[:5] if user else 'None'}...")
+    logger.info(f"[dvc] Token length: {len(token) if token else 0}")
+    
     if not user or not token:
-        logger.warning("[dvc] DAGSHUB_USERNAME / DAGSHUB_TOKEN not set; skipping pull")
+        logger.error("[dvc] DAGSHUB_USERNAME / DAGSHUB_TOKEN not set")
         return
 
-    try:
-        logger.info("[dvc] Starting background pull...")
+    try:   
+        # Show current working directory and files
+        logger.info(f"[dvc] CWD: {os.getcwd()}")
+        logger.info(f"[dvc] Files: {os.listdir('.')}")
         
+        # Check if .dvc directory exists
+        if os.path.exists('.dvc'):
+            logger.info(f"[dvc] .dvc contents: {os.listdir('.dvc')}")
+        else:
+            logger.error("[dvc] .dvc directory missing!")
+            return
+
+        logger.info("[dvc] Starting background pull...")
+
         # Configure DVC remote auth (scoped to container)
         subprocess.run(
             ["dvc", "remote", "modify", "dagshub", "auth", "basic"],

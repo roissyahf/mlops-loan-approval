@@ -2,21 +2,31 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# Install git (required for DVC)
+RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
+
 # Install deps first
 COPY monitoring/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt && pip install --no-cache-dir "dvc[http]" python-dotenv
 
-# Bring data from DVC
-COPY .dvc/config .dvc/config
+# Copy git repository (needed for DVC)
+COPY .git/ .git/
+COPY .gitignore .gitignore
+
+# Copy DVC configuration
+COPY .dvc/ .dvc/
+COPY .dvcignore .dvcignore
+
+# Copy DVC files for the data we need
 COPY data/simulation/*.dvc data/simulation/
 
 # Copy monitoring service code
 COPY monitoring/ /app/
 
-# Copy simulation data into image
+# Set environment variables
 ENV REF_DATA_PATH=/app/data/simulation/reference_data.csv \
-CURR_DATA_PATH=/app/data/simulation/current_data.csv
-    
+    CURR_DATA_PATH=/app/data/simulation/current_data.csv
+
 EXPOSE 8080
 
 CMD ["python", "app.py"]
