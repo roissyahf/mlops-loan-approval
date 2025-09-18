@@ -32,6 +32,13 @@ def dvc_pull_async():
         return
 
     try:   
+        # Initialize git repo if it doesn't exist (required for DVC)
+        if not os.path.exists('.git'):
+            logger.info("[dvc] Initializing git repository...")
+            subprocess.run(["git", "init", "."], check=True, capture_output=True, timeout=30)
+            subprocess.run(["git", "config", "user.email", "monitoring@example.com"], check=True, capture_output=True)
+            subprocess.run(["git", "config", "user.name", "Monitoring Service"], check=True, capture_output=True)
+
         # Show current working directory and files
         logger.info(f"[dvc] CWD: {os.getcwd()}")
         logger.info(f"[dvc] Files: {os.listdir('.')}")

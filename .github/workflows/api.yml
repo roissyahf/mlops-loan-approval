@@ -46,7 +46,7 @@ jobs:
       - name: Configure Docker
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
-      - name: Build and push model image
+      - name: Build and push API image
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -62,13 +62,16 @@ jobs:
           region: ${{ env.REGION }}
           env_vars: |
             MODEL_URL=${{ env.MODEL_URL }}
+            MODEL_NAME=loan-xgb-tuning
+            MODEL_VERSION=prod-1
+            FEATURE_PIPELINE_VERSION=cloud-prod
           flags: >
             --ingress=all
             --allow-unauthenticated
             --min-instances=1
             --concurrency=50
             --cpu=1 --memory=512Mi
-            --service-account=s${{ env.SA_API }}
+            --service-account=sa-api@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
             --timeout=300
 
       - name: Verify MODEL_URL on active revision
@@ -76,9 +79,9 @@ jobs:
           gcloud run services describe ${{ env.SVC_API }} --region ${{ env.REGION }} \
           --format='value(spec.template.spec.containers[0].env)'
 
-      - name: Grant API SA invoke on Model
+      - name: Grant Model SA invoke on Model
         run: |
           gcloud run services add-iam-policy-binding ${{ env.SVC_MODEL }} \
             --region ${{ env.REGION }} \
-            --member "serviceAccount:${{ env.SA_API }}" \
+            --member "serviceAccount:sa-model@${{ env.PROJECT_ID }}.iam.gserviceaccount.com" \
             --role "roles/run.invoker"

@@ -9,10 +9,6 @@ RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 COPY monitoring/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt && pip install --no-cache-dir "dvc[http]" python-dotenv
 
-# Copy git repository (needed for DVC)
-COPY .git/ .git/
-COPY .gitignore .gitignore
-
 # Copy DVC configuration
 COPY .dvc/ .dvc/
 COPY .dvcignore .dvcignore
