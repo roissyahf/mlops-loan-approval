@@ -68,7 +68,7 @@ jobs:
             --min-instances=1
             --concurrency=50
             --cpu=1 --memory=512Mi
-            --service-account=sa-model@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
+            --service-account=s${{ env.SA_API }}
             --timeout=300
 
       - name: Verify MODEL_URL on active revision

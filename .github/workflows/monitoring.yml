@@ -40,7 +40,7 @@ jobs:
           push: true
           tags: ${{ env.IMAGE }}
 
-      - name: Deploy to Cloud Run (Monitoring, private)
+      - name: Deploy to Cloud Run (Monitoring)
         uses: google-github-actions/deploy-cloudrun@v1
         with:
           service: ${{ env.SVC }}
@@ -53,9 +53,10 @@ jobs:
             CURR_DATA_PATH=/app/data/simulation/current_data.csv
           flags: >
             --ingress=all
-            --no-allow-unauthenticated
+            --allow-unauthenticated
             --min-instances=0
             --concurrency=20
-            --cpu=1 --memory=512Mi
+            --cpu=1 --memory=1Gi
             --service-account=sa-model@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
-            --timeout=300
+            --timeout=900
+            --max-instances=3

@@ -3,6 +3,7 @@
 # ------------------------
 .github/workflows/retraining-model.yml
 model/retraining.py
+model/modelling_refactor.py
 
 # ------------------------
 # Unused files
