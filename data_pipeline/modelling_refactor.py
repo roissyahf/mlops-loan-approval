@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 import mlflow
+from mlflow.tracking import MlflowClient
 import dagshub
 from dotenv import load_dotenv
 
@@ -160,12 +161,20 @@ class _TrainAndEvaluateModel:
 
             # Log to MLflow
             input_example = X_train.iloc[:5].copy()
-            mlflow.sklearn.log_model(
+            model_info = mlflow.sklearn.log_model(
                 sk_model=clf,
                 artifact_path="model",
                 input_example=input_example,
                 registered_model_name="XGB-best-model-manual"
             )
+
+            # Promote to Production stage
+            client = MlflowClient()
+            client.transition_model_version_stage(
+                name="XGB-best-model-manual",
+                version=model_info.registered_model_version,
+                stage="Production"
+                )
 
             print(f"[train] run_id={run.info.run_id} AUC={auc:.4f} F1={f1:.4f}")
             return clf, metrics
