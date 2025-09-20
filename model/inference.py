@@ -135,7 +135,6 @@ except Exception as e:
     print(f"[model-bootstrap] Model initialization failed: {e}", flush=True)
     model = None
 
-# Rest of your inference code...
 REQUIRED_COLUMNS = [
     "person_age",
     "person_income", 
