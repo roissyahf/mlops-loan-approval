@@ -1,17 +1,22 @@
+# docker/Dockerfile.model
 FROM python:3.12-slim
-
 WORKDIR /app
 
-# Install deps first (better layer caching)
-COPY model/requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl && rm -rf /var/lib/apt/lists/*
 
-# Copy model service code
+COPY model/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt \
+    && pip install --no-cache-dir mlflow python-dotenv joblib
+
+# Copy app source
 COPY model/ /app/
 
-# Copy model.pkl
-COPY model/model.pkl /app/model.pkl
+# MLflow envs
+ENV MLFLOW_TRACKING_URI="" \
+    MLFLOW_TRACKING_USERNAME="" \
+    MLFLOW_TRACKING_PASSWORD="" \
+    MLFLOW_MODEL_NAME="XGB-best-model-manual" \
+    MLFLOW_MODEL_STAGE="Production"
 
 EXPOSE 8080
-
 CMD ["python", "app.py"]

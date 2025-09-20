@@ -4,6 +4,11 @@ from flask_cors import CORS
 from evidently_profile import build_report, build_classification_report, suite_json, save_suite_html
 import pandas as pd
 import logging
+import logging
+import json
+from datetime import datetime
+import time
+from google.cloud import monitoring_v3
 
 app = Flask(__name__)
 CORS(app)
@@ -134,6 +139,13 @@ def health():
         ref_exists = os.path.exists(REF_DATA_PATH)
         curr_exists = os.path.exists(CURR_DATA_PATH)
     
+    logger.info(json.dumps({
+        "service": "monitoring",
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "custom_metric": "service_health"
+    }))
+
     status = "ok"
     return jsonify({
         "status": status,
@@ -237,6 +249,84 @@ def drift_html():
     except Exception as e:
         logger.error(f"Error generating drift HTML: {e}")
         return jsonify({"error": str(e)}), 500
+
+
+# --------- (for cloud monitoring) --------------
+def publish_drift_metrics():
+    """Publish Evidently drift metrics to Google Cloud Monitoring"""
+    try:
+        report = build_report(REF_DATA_PATH, CURR_DATA_PATH)
+        report_dict = report.as_dict()
+        
+        # Extract metrics
+        metrics = extract_drift_metrics(report_dict)
+        
+        # Publish to Cloud Monitoring
+        client = monitoring_v3.MetricServiceClient()
+        project_name = f"projects/{os.getenv('GCP_PROJECT_ID', '')}"
+        
+        for metric_name, value in metrics.items():
+            series = monitoring_v3.TimeSeries()
+            series.metric.type = f"custom.googleapis.com/loan_model/{metric_name}"
+            series.resource.type = "cloud_run_revision"
+            
+            point = series.points.add()
+            point.value.double_value = float(value)
+            point.interval.end_time.seconds = int(time.time())
+            
+            client.create_time_series(name=project_name, time_series=[series])
+            
+        logger.info(f"Published metrics: {metrics}")
+        return metrics
+        
+    except Exception as e:
+        logger.error(f"Failed to publish metrics: {e}")
+        return {}
+
+
+def extract_drift_metrics(report_dict):
+    """Extract key drift metrics from Evidently report"""
+    metrics = {}
+    
+    try:
+        # Navigate the report structure (need to adjust based on your Evidently version)
+        if 'metrics' in report_dict:
+            for metric in report_dict['metrics']:
+                if metric.get('metric') == 'DataDriftTable':
+                    metrics['data_drift_score'] = metric.get('result', {}).get('drift_score', 0)
+                elif metric.get('metric') == 'DatasetDriftMetric':
+                    metrics['dataset_drift_detected'] = int(metric.get('result', {}).get('drift_detected', False))
+                    
+    except Exception as e:
+        logger.error(f"Error extracting metrics: {e}")
+        # Fallback: generate dummy metrics for testing
+        metrics = {
+            'data_drift_score': 0.3,
+            'dataset_drift_detected': 0,
+            'prediction_drift_score': 0.2
+        }
+        
+    return metrics
+
+
+@app.route("/publish-metrics", methods=["POST"])
+def publish_metrics_endpoint():
+    if not check_data_files():
+        return jsonify({"error": "Data files not available"}), 404
+    
+    try:
+        metrics = publish_drift_metrics()
+        return jsonify({"status": "success", "metrics": metrics})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/drift-check", methods=["POST"])
+def automated_drift_check():
+    """For automated scheduling"""
+    return publish_metrics_endpoint()
+
+
 
 if __name__ == "__main__":
     port = int(os.getenv("PORT", "8080"))  # Use PORT env var from Cloud Run

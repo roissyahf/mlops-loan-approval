@@ -7,10 +7,10 @@ on:
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-  REGION: ${{ secrets.GCP_REGION }}
-  REPO: ${{ secrets.ARTIFACT_REPO }}
-  SVC: loan-model
-  IMAGE: ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.ARTIFACT_REPO }}/loan-model:latest
+  REGION:     ${{ secrets.GCP_REGION }}
+  REPO:       ${{ secrets.ARTIFACT_REPO }}
+  SVC:        loan-model
+  IMAGE:      ${{ secrets.GCP_REGION }}-docker.pkg.dev/${{ secrets.GCP_PROJECT_ID }}/${{ secrets.ARTIFACT_REPO }}/loan-model:latest
 
 jobs:
   deploy:
@@ -21,16 +21,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Authenticate to Google Cloud
-        id: auth
+      - name: Auth to Google Cloud
         uses: google-github-actions/auth@v2
         with:
           credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
-      - name: Set up gcloud CLI
+      - name: Set up gcloud
         uses: google-github-actions/setup-gcloud@v1
 
-      - name: Configure Docker
+      - name: Configure Docker to Artifact Registry
         run: gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
       - name: Build and push model image
@@ -55,10 +54,15 @@ jobs:
             --cpu=1 --memory=512Mi
             --service-account=sa-model@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
             --timeout=300
+            --set-env-vars=MLFLOW_TRACKING_URI=${{ secrets.MLFLOW_TRACKING_URI }}
+            --set-env-vars=MLFLOW_TRACKING_USERNAME=${{ secrets.DAGSHUB_USERNAME }}
+            --set-env-vars=MLFLOW_TRACKING_PASSWORD=${{ secrets.DAGSHUB_TOKEN }}
+            --set-env-vars=MLFLOW_MODEL_NAME=XGB-best-model-manual
+            --set-env-vars=MLFLOW_MODEL_STAGE=Production
+            --set-env-vars=MODEL_PATH=/app/model.pkl
 
       - name: Output MODEL_URL
         id: model
         run: |
-          URL=$(gcloud run services describe ${{ env.SVC }} --region ${{ env.REGION }} \
-            --format='value(status.url)')
+          URL=$(gcloud run services describe ${{ env.SVC }} --region ${{ env.REGION }} --format='value(status.url)')
           echo "url=$URL" >> $GITHUB_OUTPUT

@@ -7,14 +7,47 @@ from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from xgboost import XGBClassifier
 import numpy as np
+from pathlib import Path
+import mlflow
 import pandas as pd
 import time
+import joblib
 
-MODEL_PATH = os.path.join(os.path.dirname(__file__), "model.pkl")
 
-# Load model (can be a pipeline)
-with open(MODEL_PATH, "rb") as f:
-    model = pickle.load(f)
+# Detect if running inside container (/app/) or locally
+DEFAULT_PATH = Path(__file__).parent / "model.pkl"
+MODEL_PATH = os.getenv("MODEL_PATH", str(DEFAULT_PATH))
+
+
+def ensure_model_present():
+    """Fetch model from MLflow Registry if not present (or FORCE_REFRESH_MODEL=1)."""
+    need_fetch = os.getenv("FORCE_REFRESH_MODEL", "0") == "1" or not os.path.exists(MODEL_PATH)
+
+    if not need_fetch:
+        return
+
+    uri   = os.getenv("MLFLOW_TRACKING_URI", "").strip()
+    user  = os.getenv("MLFLOW_TRACKING_USERNAME", "").strip()
+    pwd   = os.getenv("MLFLOW_TRACKING_PASSWORD", "").strip()
+    name  = os.getenv("MLFLOW_MODEL_NAME", "XGB-best-model-manual").strip()
+    stage = os.getenv("MLFLOW_MODEL_STAGE", "Production").strip()
+
+    if not uri or not user or not pwd:
+        raise RuntimeError("Missing MLflow creds/URI: MLFLOW_TRACKING_URI/USERNAME/PASSWORD")
+
+    os.environ["MLFLOW_TRACKING_USERNAME"] = user
+    os.environ["MLFLOW_TRACKING_PASSWORD"] = pwd
+    mlflow.set_tracking_uri(uri)
+
+    model_uri = f"models:/{name}/{stage}"
+    print(f"[model-bootstrap] Loading {model_uri}")
+    model = mlflow.sklearn.load_model(model_uri)
+    joblib.dump(model, MODEL_PATH)
+    print("[model-bootstrap] Saved", MODEL_PATH)
+
+# call before creating routes
+ensure_model_present()
+model = joblib.load(MODEL_PATH)
 
 # The exact features the model was trained on (post-transform)
 REQUIRED_COLUMNS = [

@@ -129,6 +129,13 @@ def index():
 
 @app.route("/health", methods=["GET"])
 def health():
+    # Log structured metrics for Cloud Monitoring
+    logger.info(json.dumps({
+        "service": "api",
+        "status": "healthy",
+        "timestamp": datetime.now().isoformat(),
+        "custom_metric": "service_health"
+    }))
     return jsonify(status="ok", model_url=MODEL_SERVICE_URL), 200
 
 

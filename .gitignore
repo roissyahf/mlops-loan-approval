@@ -20,6 +20,9 @@ model/modelling_refactor.py
 
 /data/current/current.jsonl
 
+/data_pipeline/preprocessing_refactor.py
+/data_pipeline/requirements.txt
+
 # ------------------------
 # Python cache & build files
 # ------------------------
