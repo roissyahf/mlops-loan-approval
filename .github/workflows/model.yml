@@ -60,6 +60,7 @@ jobs:
             --set-env-vars=MLFLOW_MODEL_NAME=XGB-best-model-manual
             --set-env-vars=MLFLOW_MODEL_STAGE=Production
             --set-env-vars=MODEL_PATH=/app/model.pkl
+            --set-env-vars=PYTHONUNBUFFERED=1
 
       - name: Output MODEL_URL
         id: model

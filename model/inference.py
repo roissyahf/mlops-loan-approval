@@ -19,18 +19,14 @@ DEFAULT_PATH = Path(__file__).parent / "model.pkl"
 MODEL_PATH = os.getenv("MODEL_PATH", str(DEFAULT_PATH))
 
 
-def ensure_model_present():
-    """Fetch model from MLflow Registry if not present (or FORCE_REFRESH_MODEL=1)."""
-    need_fetch = os.getenv("FORCE_REFRESH_MODEL", "0") == "1" or not os.path.exists(MODEL_PATH)
-
-    if not need_fetch:
-        return
-
+def _load_from_registry_or_latest_artifact():
+    """Try registry first; fallback to latest run's model artifact."""
     uri   = os.getenv("MLFLOW_TRACKING_URI", "").strip()
     user  = os.getenv("MLFLOW_TRACKING_USERNAME", "").strip()
     pwd   = os.getenv("MLFLOW_TRACKING_PASSWORD", "").strip()
     name  = os.getenv("MLFLOW_MODEL_NAME", "XGB-best-model-manual").strip()
     stage = os.getenv("MLFLOW_MODEL_STAGE", "Production").strip()
+    exp   = os.getenv("MLFLOW_EXPERIMENT_NAME", "").strip()
 
     if not uri or not user or not pwd:
         raise RuntimeError("Missing MLflow creds/URI: MLFLOW_TRACKING_URI/USERNAME/PASSWORD")
@@ -39,14 +35,64 @@ def ensure_model_present():
     os.environ["MLFLOW_TRACKING_PASSWORD"] = pwd
     mlflow.set_tracking_uri(uri)
 
-    model_uri = f"models:/{name}/{stage}"
-    print(f"[model-bootstrap] Loading {model_uri}")
-    model = mlflow.sklearn.load_model(model_uri)
-    joblib.dump(model, MODEL_PATH)
-    print("[model-bootstrap] Saved", MODEL_PATH)
+    # 1) Try Registry stage
+    try:
+        model_uri = f"models:/{name}/{stage}"
+        print(f"[model-bootstrap] Trying registry: {model_uri}", flush=True)
+        m = mlflow.sklearn.load_model(model_uri)
+        return m
+    except Exception as e:
+        print(f"[model-bootstrap] Registry load failed: {e}", flush=True)
+
+    # 2) Fallback: latest run's model artifact (requires experiment name)
+    if exp:
+        try:
+            exp_obj = mlflow.get_experiment_by_name(exp)
+            if exp_obj is None:
+                raise RuntimeError(f"Experiment '{exp}' not found")
+            df = mlflow.search_runs(
+                experiment_ids=[exp_obj.experiment_id],
+                order_by=["attributes.start_time DESC"],
+                max_results=1,
+                filter_string="attributes.status = 'FINISHED'"
+            )
+            if df is not None and not df.empty:
+                run_id = df.iloc[0]["run_id"]
+                run_uri = f"runs:/{run_id}/model"
+                print(f"[model-bootstrap] Falling back to latest run: {run_uri}", flush=True)
+                m = mlflow.sklearn.load_model(run_uri)
+                return m
+            else:
+                raise RuntimeError("No finished runs found to fallback to.")
+        except Exception as e:
+            print(f"[model-bootstrap] Fallback to latest run failed: {e}", flush=True)
+
+    # 3) Service will start; /predict will fail until fixed
+    return None
+
+
+def ensure_model_present():
+    """Fetch model from MLflow if not present (or FORCE_REFRESH_MODEL=1)."""
+    need_fetch = os.getenv("FORCE_REFRESH_MODEL", "0") == "1" or not os.path.exists(MODEL_PATH)
+    if not need_fetch:
+        return
+
+    m = _load_from_registry_or_latest_artifact()
+    if m is None:
+        print("[model-bootstrap] No model could be loaded; starting without model.pkl", flush=True)
+        return
+
+    joblib.dump(m, MODEL_PATH)
+    print("[model-bootstrap] Saved", MODEL_PATH, flush=True)
+
 
 # call before creating routes
-ensure_model_present()
+try:
+    ensure_model_present()
+except Exception as e:
+    # Never crash the process at import time
+    print(f"[model-bootstrap] unexpected error: {e}", flush=True)
+
 model = joblib.load(MODEL_PATH)
 
 # The exact features the model was trained on (post-transform)
