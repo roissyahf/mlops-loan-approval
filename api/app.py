@@ -91,11 +91,26 @@ def _parse_model_response(resp_json):
 
 
 def _write_jsonl(path: str, obj: dict):
+    # for locally write to data/simulation/current.jsonl
     try:
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(obj, ensure_ascii=False) + "\n")
     except Exception as e:
         logger.error(f"Failed to append inference event to {path}: {e}")
+    
+
+def _log_and_persist_event(event: dict):
+    # persist locally (for retraining JSONL)
+    try:
+        _write_jsonl(LOG_PATH, event)
+    except Exception as e:
+        logger.error(f"Failed to append inference event to {LOG_PATH}: {e}")
+
+    # emit to stdout for Cloud Logging
+    try:
+        logger.info("prediction_event %s", json.dumps(event, ensure_ascii=False))
+    except Exception as e:
+        logger.error(f"Failed to log event to stdout: {e}")
 
 
 def log_current_row(features_dict: dict, prediction, prediction_proba=None):
@@ -191,7 +206,7 @@ def predict_endpoint():
         if prediction_proba is not None:
             event["prediction_proba"] = prediction_proba
 
-        _write_jsonl(LOG_PATH, event)
+        _log_and_persist_event(event)
 
         if resp_json is not None:
             return jsonify(resp_json), response.status_code
