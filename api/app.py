@@ -117,9 +117,10 @@ def _log_and_persist_event(event: dict):
 
     # emit to stdout for Cloud Logging
     try:
-        logger.info("prediction_event %s", json.dumps(event, ensure_ascii=False))
+        logger.info({"message": "prediction_event", "event": event})
     except Exception as e:
         logger.error(f"Failed to log event to stdout: {e}")
+
 
 
 def log_current_row(features_dict: dict, prediction, prediction_proba=None):
