@@ -4,11 +4,10 @@ from flask_cors import CORS
 from evidently_profile import build_report, build_classification_report, suite_json, save_suite_html
 import pandas as pd
 import logging
-import logging
 import json
 from datetime import datetime
 import time
-from google.cloud import monitoring_v3
+import threading
 
 app = Flask(__name__)
 CORS(app)
@@ -18,25 +17,28 @@ logger = logging.getLogger(__name__)
 # Global flags for data availability
 DATA_READY = False
 DVC_ATTEMPTED = False
+DVC_IN_PROGRESS = False
 
-def dvc_pull_async():
-    global DATA_READY, DVC_ATTEMPTED
+def dvc_pull_background():
+    """Run DVC pull in background thread to avoid blocking startup"""
+    global DATA_READY, DVC_ATTEMPTED, DVC_IN_PROGRESS
     
-    if DVC_ATTEMPTED:
+    if DVC_ATTEMPTED or DVC_IN_PROGRESS:
         return
     
+    DVC_IN_PROGRESS = True
     DVC_ATTEMPTED = True
-    user = os.getenv("DAGSHUB_USERNAME")
-    token = os.getenv("DAGSHUB_TOKEN")
-
-    logger.info(f"[dvc] Starting pull with user: {user[:5] if user else 'None'}...")
-    logger.info(f"[dvc] Token length: {len(token) if token else 0}")
     
-    if not user or not token:
-        logger.error("[dvc] DAGSHUB_USERNAME / DAGSHUB_TOKEN not set")
-        return
+    try:
+        user = os.getenv("DAGSHUB_USERNAME")
+        token = os.getenv("DAGSHUB_TOKEN")
 
-    try:   
+        logger.info(f"[dvc] Starting background pull with user: {user[:5] if user else 'None'}...")
+        
+        if not user or not token:
+            logger.error("[dvc] DAGSHUB_USERNAME / DAGSHUB_TOKEN not set")
+            return
+
         # Initialize git repo if it doesn't exist (required for DVC)
         if not os.path.exists('.git'):
             logger.info("[dvc] Initializing git repository...")
@@ -44,18 +46,12 @@ def dvc_pull_async():
             subprocess.run(["git", "config", "user.email", "monitoring@example.com"], check=True, capture_output=True)
             subprocess.run(["git", "config", "user.name", "Monitoring Service"], check=True, capture_output=True)
 
-        # Show current working directory and files
-        logger.info(f"[dvc] CWD: {os.getcwd()}")
-        logger.info(f"[dvc] Files: {os.listdir('.')}")
-        
         # Check if .dvc directory exists
-        if os.path.exists('.dvc'):
-            logger.info(f"[dvc] .dvc contents: {os.listdir('.dvc')}")
-        else:
+        if not os.path.exists('.dvc'):
             logger.error("[dvc] .dvc directory missing!")
             return
 
-        logger.info("[dvc] Starting background pull...")
+        logger.info("[dvc] Configuring DVC remote...")
 
         # Configure DVC remote auth (scoped to container)
         subprocess.run(
@@ -72,28 +68,28 @@ def dvc_pull_async():
         )
 
         # Pull only what this service needs with timeout
+        logger.info("[dvc] Starting data pull...")
         subprocess.run(["dvc","pull",
                         "data/simulation/reference_data.csv",
                         "data/simulation/current_data.csv"], 
-                      check=True, timeout=120)
+                      check=True, timeout=180)
 
-        logger.info("[dvc] pull completed successfully")
+        logger.info("[dvc] Data pull completed successfully")
         DATA_READY = True
         
     except subprocess.TimeoutExpired:
-        logger.error("[dvc] pull timeout - continuing without data")
+        logger.error("[dvc] Data pull timeout - service will continue without data")
     except subprocess.CalledProcessError as e:
-        logger.error(f"[dvc] failed: {e}\nSTDERR: {e.stderr.decode() if e.stderr else ''}")
+        logger.error(f"[dvc] Data pull failed: {e}")
+        if e.stderr:
+            logger.error(f"[dvc] STDERR: {e.stderr.decode()}")
     except Exception as e:
-        logger.error(f"[dvc] unexpected error: {e}")
+        logger.error(f"[dvc] Unexpected error during data pull: {e}")
+    finally:
+        DVC_IN_PROGRESS = False
 
 def resolve_path(p: str) -> str:
-    """
-    Make env-provided paths robust across:
-    - Windows / Linux
-    - running from project root vs monitoring/
-    - absolute vs relative
-    """
+    """Make env-provided paths robust across different environments"""
     if p is None:
         return ""
     p = p.strip()
@@ -116,7 +112,7 @@ def resolve_path(p: str) -> str:
     alt_path = os.path.normpath(os.path.join(script_dir, p))
     return alt_path
 
-# Run from project root: python monitoring/app.py
+# Path configuration
 REF_DATA_PATH = resolve_path(os.getenv("REF_DATA_PATH", "data/simulation/reference_data.csv"))
 CURR_DATA_PATH = resolve_path(os.getenv("CURR_DATA_PATH", "data/simulation/current_data.csv"))
 
@@ -126,18 +122,16 @@ def index():
 
 @app.route("/health", methods=["GET"])
 def health():
-    """
-    Always return healthy for Cloud Run startup - data issues are not fatal
-    """
+    """Always return healthy - data issues are not fatal for startup"""
     ref_exists = os.path.exists(REF_DATA_PATH)
     curr_exists = os.path.exists(CURR_DATA_PATH)
     
-    # Try DVC pull if not attempted and data missing
-    if not DATA_READY and not DVC_ATTEMPTED and (not ref_exists or not curr_exists):
-        dvc_pull_async()
-        # Re-check after attempt
-        ref_exists = os.path.exists(REF_DATA_PATH)
-        curr_exists = os.path.exists(CURR_DATA_PATH)
+    # Start background DVC pull if data is missing and not attempted yet
+    if not DATA_READY and not DVC_ATTEMPTED and not DVC_IN_PROGRESS:
+        if not ref_exists or not curr_exists:
+            # Start background thread for DVC pull
+            thread = threading.Thread(target=dvc_pull_background, daemon=True)
+            thread.start()
     
     logger.info(json.dumps({
         "service": "monitoring",
@@ -146,38 +140,40 @@ def health():
         "custom_metric": "service_health"
     }))
 
-    status = "ok"
     return jsonify({
-        "status": status,
-        "ref": REF_DATA_PATH,
+        "status": "ok",
         "ref_exists": ref_exists,
-        "curr": CURR_DATA_PATH,
         "curr_exists": curr_exists,
-        "cwd": os.getcwd(),
         "data_ready": DATA_READY,
-        "dvc_attempted": DVC_ATTEMPTED
+        "dvc_attempted": DVC_ATTEMPTED,
+        "dvc_in_progress": DVC_IN_PROGRESS
     })
 
 def check_data_files():
     """Helper to ensure data is available before processing"""
-    if not DATA_READY and not DVC_ATTEMPTED:
-        dvc_pull_async()
+    ref_exists = os.path.exists(REF_DATA_PATH)
+    curr_exists = os.path.exists(CURR_DATA_PATH)
     
-    if not (os.path.exists(REF_DATA_PATH) and os.path.exists(CURR_DATA_PATH)):
-        return False
-    return True
+    # Try to trigger background pull if not done yet
+    if not DATA_READY and not DVC_ATTEMPTED and not DVC_IN_PROGRESS:
+        if not ref_exists or not curr_exists:
+            thread = threading.Thread(target=dvc_pull_background, daemon=True)
+            thread.start()
+    
+    return ref_exists and curr_exists
 
-# --------- (for /model-drift, /model-drift.html) --------------
 @app.route("/model-drift", methods=["GET"])
 def model_drift_json():
     if not check_data_files():
-        return jsonify({"error": "reference or current file not found", 
-                       "data_ready": DATA_READY}), 404
+        return jsonify({
+            "error": "reference or current file not found", 
+            "data_ready": DATA_READY,
+            "dvc_in_progress": DVC_IN_PROGRESS,
+            "message": "Data may still be downloading in background"
+        }), 404
     
     try:
-        # Build classification performance report
         report = build_classification_report(REF_DATA_PATH, CURR_DATA_PATH)
-        # Return Evidently's JSON (safer than jsonify for numpy types)
         return Response(report.json(), mimetype="application/json")
     except Exception as e:
         logger.error(f"Error generating model drift report: {e}")
@@ -197,7 +193,6 @@ def model_drift_html():
         logger.error(f"Error generating model drift HTML: {e}")
         return jsonify({"error": str(e)}), 500
 
-# --------- (for /tests, /tests.html) --------------
 @app.route("/tests", methods=["GET"])
 def tests_json():
     if not check_data_files():
@@ -222,7 +217,6 @@ def tests_html():
         logger.error(f"Error generating tests HTML: {e}")
         return jsonify({"error": str(e)}), 500
 
-# --------- (for /drift, /drift.html) --------------
 @app.route("/drift", methods=["GET"])
 def drift_json():
     if not check_data_files():
@@ -230,7 +224,6 @@ def drift_json():
     
     try:
         report = build_report(REF_DATA_PATH, CURR_DATA_PATH)
-        # Use Evidently's serializer to avoid numpy/typing issues with jsonify
         return Response(report.json(), mimetype="application/json")
     except Exception as e:
         logger.error(f"Error generating drift report: {e}")
@@ -250,11 +243,11 @@ def drift_html():
         logger.error(f"Error generating drift HTML: {e}")
         return jsonify({"error": str(e)}), 500
 
-
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", "8080"))  # Use PORT env var from Cloud Run
+    port = int(os.getenv("PORT", "8080"))
     logger.info(f"Starting monitoring service on port {port}")
     logger.info(f"REF_DATA_PATH: {REF_DATA_PATH}")
     logger.info(f"CURR_DATA_PATH: {CURR_DATA_PATH}")
     
+    # Start the Flask app immediately
     app.run(host="0.0.0.0", port=port)

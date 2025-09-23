@@ -2,7 +2,7 @@ name: CI/CD - Monitoring
 
 on:
   push:
-    paths: ['monitoring/**', 'data/simulation/**', 'Docker/Dockerfile.monitoring', '.github/workflows/monitoring.yml']
+    paths: ['monitoring/**', 'data/simulation/**', 'docker/Dockerfile.monitoring', '.github/workflows/monitoring.yml']
   workflow_call: {}
 
 env:
@@ -60,3 +60,6 @@ jobs:
             --service-account=sa-model@${{ env.PROJECT_ID }}.iam.gserviceaccount.com
             --timeout=900
             --max-instances=3
+            --timeout=900
+            --set-env-vars=DAGSHUB_USERNAME=${{ secrets.DAGSHUB_USERNAME }}
+            --set-env-vars=DAGSHUB_TOKEN=${{ secrets.DAGSHUB_TOKEN }}

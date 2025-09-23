@@ -8,13 +8,22 @@ import uuid
 import time
 from datetime import datetime, timezone
 from urllib.parse import urljoin
+import google.cloud.logging
+from google.cloud.logging_v2.handlers import StructuredLogHandler
 from google.oauth2 import id_token
 from google.auth.transport.requests import Request
 
 app = Flask(__name__)
 CORS(app)
-logging.basicConfig(level=logging.INFO)
+
+# Cloud Run logging
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+logger.handlers.clear()
+logger.propagate = False
+logger.addHandler(StructuredLogHandler())
+logging.basicConfig(level=logging.INFO)
+
 
 # ---- Config ----
 MODEL_SERVICE_URL = os.environ.get("MODEL_URL", "").rstrip("/")  # set by Cloud Run deploy
@@ -24,7 +33,7 @@ if not MODEL_SERVICE_URL:
 logger.info(f"Using MODEL_URL={MODEL_SERVICE_URL!r}")
 PREDICT_URL = urljoin(MODEL_SERVICE_URL + "/", "predict") 
 
-LOG_PATH = os.environ.get("LOG_PATH", "./data/simulation/current.jsonl")
+LOG_PATH = os.environ.get("LOG_PATH", "/tmp/current.jsonl")
 os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
 LOG_PATH = os.path.abspath(LOG_PATH)
 
@@ -135,6 +144,8 @@ def log_current_row(features_dict: dict, prediction, prediction_proba=None):
         event["prediction_proba"] = prediction_proba
 
     _write_jsonl(LOG_PATH, event)
+
+    logger.info({"message": "prediction_event", "event": event})
 
 
 @app.route("/", methods=["GET"])
