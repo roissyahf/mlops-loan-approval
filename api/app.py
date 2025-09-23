@@ -16,27 +16,17 @@ from google.auth.transport.requests import Request
 app = Flask(__name__)
 CORS(app)
 
-# Cloud Run logging
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.INFO)
-logger.handlers.clear()
-logger.propagate = False
-logger.addHandler(StructuredLogHandler())
-logging.basicConfig(level=logging.INFO)
-
-
 # ---- Config ----
 MODEL_SERVICE_URL = os.environ.get("MODEL_URL", "").rstrip("/")  # set by Cloud Run deploy
 #MODEL_SERVICE_URL = os.environ.get("MODEL_URL", "http://model:5000/predict") # for local deployment
 if not MODEL_SERVICE_URL:
     raise RuntimeError("MODEL URL is not set!")
-logger.info(f"Using MODEL_URL={MODEL_SERVICE_URL!r}")
+print(json.dumps({"message": "Using MODEL_URL", "url": MODEL_SERVICE_URL}))
 PREDICT_URL = urljoin(MODEL_SERVICE_URL + "/", "predict") 
 
 LOG_PATH = os.environ.get("LOG_PATH", "/tmp/current.jsonl")
 os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
 LOG_PATH = os.path.abspath(LOG_PATH)
-
 
 MODEL_NAME = (os.environ.get("MODEL_NAME", "loan-xgb-tuning") or "").strip()
 MODEL_VERSION = (os.environ.get("MODEL_VERSION", "prod-1") or "").strip()
@@ -44,9 +34,14 @@ FEATURE_PIPELINE_VERSION = (os.environ.get("FEATURE_PIPELINE_VERSION", "local-de
 SCHEMA_VERSION = "1.0"
 
 
-logger.info(f"Using MODEL_URL={MODEL_SERVICE_URL!r}")
-logger.info(f"Logging to {LOG_PATH!r}")
-logger.info(f"Model meta: name={MODEL_NAME!r}, version={MODEL_VERSION!r}, pipeline={FEATURE_PIPELINE_VERSION!r}")
+print(json.dumps({"message": "Using MODEL_URL", "url": MODEL_SERVICE_URL}))
+print(json.dumps({"message": "Logging to path", "path": LOG_PATH}))
+print(json.dumps({
+    "message": "Model meta",
+    "model_name": MODEL_NAME,
+    "model_version": MODEL_VERSION,
+    "feature_pipeline_version": FEATURE_PIPELINE_VERSION
+}))
 
 
 def get_id_token():
@@ -57,7 +52,7 @@ def get_id_token():
         token = id_token.fetch_id_token(Request(), MODEL_SERVICE_URL)
         return token
     except Exception as e:
-        logger.error(f"Failed to fetch ID token for audience {MODEL_SERVICE_URL}: {e}")
+        print(json.dumps({"message": "Failed to fetch ID token", "error": str(e)}))
         raise
 
 
@@ -67,7 +62,7 @@ def _utc_now_iso() -> str:
 
 def _parse_model_response(resp_json):
     """
-    Best-effort extraction of prediction and probability from the model response.
+    Extraction of prediction and probability from the model response.
     Accepts common key variants. Returns (prediction, prediction_proba or None).
     """
     if resp_json is None:
@@ -105,7 +100,7 @@ def _write_jsonl(path: str, obj: dict):
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(obj, ensure_ascii=False) + "\n")
     except Exception as e:
-        logger.error(f"Failed to append inference event to {path}: {e}")
+        print(json.dumps({"message": "Failed to append inference event to JSONL", "path": path, "error": str(e)}))
     
 
 def _log_and_persist_event(event: dict):
@@ -113,14 +108,17 @@ def _log_and_persist_event(event: dict):
     try:
         _write_jsonl(LOG_PATH, event)
     except Exception as e:
-        logger.error(f"Failed to append inference event to {LOG_PATH}: {e}")
+        print(json.dumps({"message": "Failed to append inference event to JSONL", "path": LOG_PATH, "error": str(e)}))
 
     # emit to stdout for Cloud Logging
     try:
-        logger.info({"message": "prediction_event", "event": event})
+        # Direct print of JSON object for Cloud Logging
+        print(json.dumps({
+            "message": "prediction_event",
+            "event": event
+        }))
     except Exception as e:
-        logger.error(f"Failed to log event to stdout: {e}")
-
+        print(json.dumps({"message": "Failed to log event to stdout", "error": str(e)}))
 
 
 def log_current_row(features_dict: dict, prediction, prediction_proba=None):
@@ -135,7 +133,7 @@ def log_current_row(features_dict: dict, prediction, prediction_proba=None):
         "model_name": MODEL_NAME,
         "model_version": MODEL_VERSION,
         "feature_pipeline_version": FEATURE_PIPELINE_VERSION,
-        "request_source": "api",   # adjust if calling from batch
+        "request_source": "api",
         "endpoint": "/predict",
         "latency_ms": None,        
         **(features_dict or {}),
@@ -146,7 +144,11 @@ def log_current_row(features_dict: dict, prediction, prediction_proba=None):
 
     _write_jsonl(LOG_PATH, event)
 
-    logger.info({"message": "prediction_event", "event": event})
+    # Direct print of JSON object for Cloud Logging
+    print(json.dumps({
+        "message": "prediction_event",
+        "event": event
+    }))
 
 
 @app.route("/", methods=["GET"])
@@ -156,8 +158,8 @@ def index():
 
 @app.route("/health", methods=["GET"])
 def health():
-    # Log structured metrics for Cloud Monitoring
-    logger.info(json.dumps({
+    # Direct print of JSON object for Cloud Logging
+    print(json.dumps({
         "service": "api",
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
@@ -177,9 +179,7 @@ def predict_endpoint():
     payload = request.get_json(silent=True) or {}
     aud = MODEL_SERVICE_URL
     tok = id_token.fetch_id_token(Request(), aud)
-    #logger.info(f"Received input: {payload}")
-    logger.info("CALLING MODEL url=%s audience=%s token_len=%s",
-                PREDICT_URL, aud, len(tok) if tok else 0)
+    print(json.dumps({"message": "CALLING MODEL", "url": PREDICT_URL, "audience": aud, "token_len": len(tok) if tok else 0}))
 
     request_id = str(uuid.uuid4())
     started = time.perf_counter()
@@ -189,7 +189,7 @@ def predict_endpoint():
                                  headers={"Authorization": f"Bearer {tok}", "Content-Type":"application/json"}, timeout=10)
         elapsed_ms = int((time.perf_counter() - started) * 1000)
 
-        logger.info(f"Model response: {response.status_code} - {response.text}")
+        print(json.dumps({"message": "Model response", "status_code": response.status_code, "text": response.text}))
 
         resp_json = None
         try:
@@ -226,9 +226,9 @@ def predict_endpoint():
             return response.text, response.status_code
 
     except Exception as e:
-        logger.error(f"Model service error: {e}")
+        print(json.dumps({"message": "Model service error", "error": str(e)}))
         return jsonify({"error": "Model service failed",
-                        "details": str(e)}), 500
+                         "details": str(e)}), 500
 
 
 if __name__ == "__main__":
