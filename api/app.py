@@ -1,28 +1,25 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import os
-import logging
 import requests
 import json
 import uuid
 import time
 from datetime import datetime, timezone
 from urllib.parse import urljoin
-import google.cloud.logging
-from google.cloud.logging_v2.handlers import StructuredLogHandler
 from google.oauth2 import id_token
 from google.auth.transport.requests import Request
+import sys
 
 app = Flask(__name__)
 CORS(app)
 
 # ---- Config ----
 MODEL_SERVICE_URL = os.environ.get("MODEL_URL", "").rstrip("/")  # set by Cloud Run deploy
-#MODEL_SERVICE_URL = os.environ.get("MODEL_URL", "http://model:5000/predict") # for local deployment
 if not MODEL_SERVICE_URL:
     raise RuntimeError("MODEL URL is not set!")
 print(json.dumps({"message": "Using MODEL_URL", "url": MODEL_SERVICE_URL}))
-PREDICT_URL = urljoin(MODEL_SERVICE_URL + "/", "predict") 
+PREDICT_URL = urljoin(MODEL_SERVICE_URL + "/", "predict")
 
 LOG_PATH = os.environ.get("LOG_PATH", "/tmp/current.jsonl")
 os.makedirs(os.path.dirname(LOG_PATH), exist_ok=True)
@@ -33,15 +30,15 @@ MODEL_VERSION = (os.environ.get("MODEL_VERSION", "prod-1") or "").strip()
 FEATURE_PIPELINE_VERSION = (os.environ.get("FEATURE_PIPELINE_VERSION", "local-dev") or "").strip()
 SCHEMA_VERSION = "1.0"
 
-
-print(json.dumps({"message": "Using MODEL_URL", "url": MODEL_SERVICE_URL}))
-print(json.dumps({"message": "Logging to path", "path": LOG_PATH}))
+# Print to stderr to ensure Cloud Logging picks it up
+print(json.dumps({"message": "Using MODEL_URL", "url": MODEL_SERVICE_URL}), file=sys.stderr)
+print(json.dumps({"message": "Logging to path", "path": LOG_PATH}), file=sys.stderr)
 print(json.dumps({
     "message": "Model meta",
     "model_name": MODEL_NAME,
     "model_version": MODEL_VERSION,
     "feature_pipeline_version": FEATURE_PIPELINE_VERSION
-}))
+}), file=sys.stderr)
 
 
 def get_id_token():
@@ -52,7 +49,7 @@ def get_id_token():
         token = id_token.fetch_id_token(Request(), MODEL_SERVICE_URL)
         return token
     except Exception as e:
-        print(json.dumps({"message": "Failed to fetch ID token", "error": str(e)}))
+        print(json.dumps({"message": "Failed to fetch ID token", "error": str(e)}), file=sys.stderr)
         raise
 
 
@@ -100,15 +97,15 @@ def _write_jsonl(path: str, obj: dict):
         with open(path, "a", encoding="utf-8") as f:
             f.write(json.dumps(obj, ensure_ascii=False) + "\n")
     except Exception as e:
-        print(json.dumps({"message": "Failed to append inference event to JSONL", "path": path, "error": str(e)}))
-    
+        print(json.dumps({"message": "Failed to append inference event to JSONL", "path": path, "error": str(e)}), file=sys.stderr)
+
 
 def _log_and_persist_event(event: dict):
     # persist locally (for retraining JSONL)
     try:
         _write_jsonl(LOG_PATH, event)
     except Exception as e:
-        print(json.dumps({"message": "Failed to append inference event to JSONL", "path": LOG_PATH, "error": str(e)}))
+        print(json.dumps({"message": "Failed to append inference event to JSONL", "path": LOG_PATH, "error": str(e)}), file=sys.stderr)
 
     # emit to stdout for Cloud Logging
     try:
@@ -116,15 +113,14 @@ def _log_and_persist_event(event: dict):
         print(json.dumps({
             "message": "prediction_event",
             "event": event
-        }))
+        }), file=sys.stderr)
     except Exception as e:
-        print(json.dumps({"message": "Failed to log event to stdout", "error": str(e)}))
+        print(json.dumps({"message": "Failed to log event to stdout", "error": str(e)}), file=sys.stderr)
 
 
 def log_current_row(features_dict: dict, prediction, prediction_proba=None):
     """
-    Use this anywhere (batch or online) to keep logs consistent with /predict.
-    Writes to the same JSONL with the same schema, so we can call it from anywhere and stay consistent.
+    Writes to the same JSONL with the same schema.
     """
     event = {
         "schema_version": SCHEMA_VERSION,
@@ -135,7 +131,7 @@ def log_current_row(features_dict: dict, prediction, prediction_proba=None):
         "feature_pipeline_version": FEATURE_PIPELINE_VERSION,
         "request_source": "api",
         "endpoint": "/predict",
-        "latency_ms": None,        
+        "latency_ms": None,
         **(features_dict or {}),
         "prediction": prediction
     }
@@ -148,7 +144,7 @@ def log_current_row(features_dict: dict, prediction, prediction_proba=None):
     print(json.dumps({
         "message": "prediction_event",
         "event": event
-    }))
+    }), file=sys.stderr)
 
 
 @app.route("/", methods=["GET"])
@@ -164,7 +160,7 @@ def health():
         "status": "healthy",
         "timestamp": datetime.now().isoformat(),
         "custom_metric": "service_health"
-    }))
+    }), file=sys.stderr)
     return jsonify(status="ok", model_url=MODEL_SERVICE_URL), 200
 
 
@@ -179,7 +175,7 @@ def predict_endpoint():
     payload = request.get_json(silent=True) or {}
     aud = MODEL_SERVICE_URL
     tok = id_token.fetch_id_token(Request(), aud)
-    print(json.dumps({"message": "CALLING MODEL", "url": PREDICT_URL, "audience": aud, "token_len": len(tok) if tok else 0}))
+    print(json.dumps({"message": "CALLING MODEL", "url": PREDICT_URL, "audience": aud, "token_len": len(tok) if tok else 0}), file=sys.stderr)
 
     request_id = str(uuid.uuid4())
     started = time.perf_counter()
@@ -189,7 +185,7 @@ def predict_endpoint():
                                  headers={"Authorization": f"Bearer {tok}", "Content-Type":"application/json"}, timeout=10)
         elapsed_ms = int((time.perf_counter() - started) * 1000)
 
-        print(json.dumps({"message": "Model response", "status_code": response.status_code, "text": response.text}))
+        print(json.dumps({"message": "Model response", "status_code": response.status_code, "text": response.text}), file=sys.stderr)
 
         resp_json = None
         try:
@@ -226,7 +222,7 @@ def predict_endpoint():
             return response.text, response.status_code
 
     except Exception as e:
-        print(json.dumps({"message": "Model service error", "error": str(e)}))
+        print(json.dumps({"message": "Model service error", "error": str(e)}), file=sys.stderr)
         return jsonify({"error": "Model service failed",
                          "details": str(e)}), 500
 
