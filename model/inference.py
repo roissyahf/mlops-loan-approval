@@ -18,7 +18,7 @@ def _load_from_registry_or_latest_artifact():
     uri   = os.getenv("MLFLOW_TRACKING_URI", "").strip()
     user  = os.getenv("MLFLOW_TRACKING_USERNAME", "").strip()
     pwd   = os.getenv("MLFLOW_TRACKING_PASSWORD", "").strip()
-    name  = os.getenv("MLFLOW_MODEL_NAME", "XGB-best-model-manual").strip()
+    name  = os.getenv("MLFLOW_MODEL_NAME", "XGB-retraining").strip()
     stage = os.getenv("MLFLOW_MODEL_STAGE", "Production").strip()
     exp   = os.getenv("MLFLOW_EXPERIMENT_NAME", "").strip()
 
@@ -155,7 +155,6 @@ def predict(input_json):
         if model is None:
             raise RuntimeError("Model is not available. Please check MLflow connection and model registration.")
     
-    # Rest of your prediction logic remains the same...
     t0 = time.perf_counter()
     features_dict = _extract_features_dict(input_json)
     X = pd.DataFrame([features_dict], columns=REQUIRED_COLUMNS)

@@ -41,7 +41,6 @@ class PreprocessData:
         return self(df)
 
     def build_preprocessor(self) -> ColumnTransformer:
-        """Always available: sklearn ColumnTransformer for modelling."""
         binary = OrdinalEncoder(
             categories=[['No', 'Yes']],
             handle_unknown='use_encoded_value',

@@ -49,7 +49,7 @@ class RetrainingPipeline:
             last_retrain = self.get_last_retrain_date()
             days_since = (datetime.now() - last_retrain).days
             
-            if days_since >= 28:  # 4 weeks
+            if days_since >= 28:
                 return True, f"Scheduled retrain: {days_since} days since last"
                 
         except Exception as e:
@@ -109,9 +109,9 @@ class RetrainingPipeline:
             data = pd.read_csv(retrain_data_path)
             logger.info(f"Retraining with {len(data)} total records")
             
-            X, y = preprocess_data(data) # reuse existing preprocessing function, ensure it's available
+            X, y = preprocess_data(data) # reuse existing preprocessing function
             
-            # Train model (reuse existing training function, ensure it's available)
+            # Train model (reuse existing training function)
             model, metrics = train_and_evaluate_model(X, y)
             
             # Log metrics

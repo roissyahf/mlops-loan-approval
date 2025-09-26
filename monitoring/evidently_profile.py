@@ -11,8 +11,7 @@ from evidently.test_suite import TestSuite
 from evidently.test_preset import DataDriftTestPreset
 
 
-# ---------- shared helpers ----------
-
+# ---------- helpers ----------
 def _align_columns(ref: pd.DataFrame, cur: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """Align schemas in-memory (do NOT modify files)."""
     all_cols = sorted(set(ref.columns) | set(cur.columns))
@@ -64,7 +63,7 @@ def _load_and_prepare(
     # features
     numeric_features, categorical_features = _infer_feature_lists(ref_df, cur_df, target_col, pred_col)
 
-    # column mapping (only map prediction if present in BOTH to avoid “partially present” errors)
+    # column mapping (only map prediction if present in BOTH to avoid partially present errors)
     cm = ColumnMapping()
     cm.target = target_col if (target_col in ref_df.columns or target_col in cur_df.columns) else None
     cm.prediction = pred_col if (pred_col and pred_col in ref_df.columns and pred_col in cur_df.columns) else None
@@ -85,7 +84,7 @@ def build_classification_report(
     ref_df, cur_df, cm = _load_and_prepare(reference_path, current_path, target_col, pred_col)
 
     # --- ClassificationPreset needs consistent label dtypes across both datasets ---
-    # Convert to strictly numeric ints (0/1). This avoids mixed str/int issues during label sorting.
+    # Convert to numeric ints (0/1), to avoid mixed str/int issues during label sorting.
     for name, df in (("reference", ref_df), ("current", cur_df)):
         if target_col not in df.columns:
             raise ValueError(f"ClassificationPreset requires {name} to contain '{target_col}'")
@@ -113,7 +112,6 @@ def build_report(
 ) -> Report:
     ref_df, cur_df, cm = _load_and_prepare(reference_path, current_path, target_col, pred_col)
     report = Report(metrics=[DataDriftPreset()])
-    # v0.5.1: reference first, then current
     report.run(reference_data=ref_df, current_data=cur_df, column_mapping=cm)
     return report
 

@@ -71,7 +71,7 @@ def combine_with_training_data(new_data_path, original_data_path, output_path):
     return output_path
 
 if __name__ == "__main__":
-    # Test locally first
+    # Test locally
     jsonl_path = "data/simulation/current.jsonl"
     new_csv = "data/processed/new_predictions.csv"
     retrain_csv = "data/processed/retrain_data.csv"
