@@ -2,83 +2,89 @@ name: Scheduled Retraining
 
 on:
   schedule:
-    # Runs every the 1st of every month at midnight UTC
+    # 1st of every month at 00:00 UTC
     - cron: '0 0 1 * *'
+
+permissions:
+  contents: read
+  actions: write
 
 jobs:
   retrain_and_deploy:
-  runs-on: ubuntu-latest
-  steps:
-  - name: Checkout repository
-    uses: actions/checkout@v4
-    with:
-      fetch-depth: 0
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-  - name: Set up GCP environment
-    id: 'auth'
-    uses: 'google-github-actions/auth@v2'
-    with:
-      credentials_json: '${{ secrets.GCP_SA_KEY }}'
+      - name: Auth to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: '${{ secrets.GCP_SA_KEY }}'
 
-  - name: Install Google Cloud SDK and BigQuery CLI
-    uses: 'google-github-actions/setup-gcloud@v2'
-    with:
-      version: '>= 381.0.0'
+      - name: Set up gcloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          version: '>= 381.0.0'
 
-  - name: Set up Python
-    uses: actions/setup-python@v5
-    with:
-      python-version: '3.12'
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
 
-  - name: Install Python dependencies
-    run: |
-      python -m pip install --upgrade pip
-      pip install -r model/requirements.txt
-      pip install dvc[gdrive]
-      
-  - name: Configure DVC and DagsHub
-    run: |
-      dvc remote add -f dagshub_remote https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/MLOps-Loan-Approval
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r model/requirements.txt
+          pip install "dvc[http]" python-dotenv mlflow
 
-  - name: Pull DVC data
-    run: dvc pull
+      - name: Configure DVC remote (DagsHub)
+        env:
+          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+        run: |
+          dvc remote add -f dagshub https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/Loan_Approval_Model.dvc
+          dvc remote modify dagshub auth basic
+          dvc remote modify dagshub user "$DAGSHUB_USERNAME"
+          dvc remote modify --local dagshub password "$DAGSHUB_TOKEN"
+          dvc remote default dagshub
 
-  - name: Run Retraining Script
-    id: run-script
-    run: python model/retraining_pipeline_prod.py
-    env:
-      GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-      BIGQUERY_DATASET: 'loan_prediction_dataset'
-      MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-      MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
-      MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/MLOps-Loan-Approval.mlflow
-      
-  - name: Push DVC data changes to remote
-    run: |
-      git config --global user.email "actions@github.com"
-      git config --global user.name "GitHub Actions"
-      dvc commit
-      dvc push
-      git add .dvc
-      git add .dvc.lock
-      git commit -m "Auto commit new data artifacts from retraining pipeline"
-      git push
+      - name: Pull DVC data
+        run: dvc pull -v
 
+      - name: Run Retraining Script
+        id: run-script
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          BIGQUERY_DATASET: 'loan_prediction_dataset'
+          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+          MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/MLOps-Loan-Approval.mlflow
+        run: |
+          python model/retraining_pipeline_prod.py
+
+      - name: Push DVC data changes to remote
+        run: |
+          git add .dvc .dvc.lock
+          git commit -m "Auto commit new data artifacts from retraining pipeline" || echo "No changes to commit"
+          dvc push -v
+          git push || echo "No git changes to push"
 
   trigger_model_deployment:
     needs: retrain_and_deploy
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-    - name: Trigger Model Deployment Workflow
-      uses: actions/github-script@v6
-      with:
-        github-token: ${{ secrets.GITHUB_TOKEN }}
-        script: |
-          await github.actions.createWorkflowDispatch({
-            owner: context.repo.owner,
-            repo: context.repo.repo,
-            workflow_id: 'model.yml',
-            ref: context.ref,
-          });
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Trigger Model Deployment Workflow
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'model.yml',
+              ref: context.ref.replace('refs/heads/', ''),
+            });
