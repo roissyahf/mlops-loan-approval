@@ -28,5 +28,5 @@ def home():
     return render_template("index.html", api_url=API_URL) # api_url will be used in index.html (case sensitive)
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", "8080")) # port 3001 for frontend local development
+    port = int(os.getenv("PORT", "8080"))
     app.run(host="0.0.0.0", port=port)

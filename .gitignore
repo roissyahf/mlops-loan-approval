@@ -1,11 +1,13 @@
 # ------------------------
 # Push later (WIP)
 # ------------------------
-model/modelling_refactor.py
 
 # ------------------------
 # Unused files
 # ------------------------
+/model/preprocessing.py
+/model/modelling.py
+
 /model/t-download-artifacts.py
 /model/t-regist-model.py
 /model/t-verify-model-registry.py
@@ -17,9 +19,6 @@ model/modelling_refactor.py
 /monitoring/model_drift_report.html
 
 /data/current/current.jsonl
-
-/model_retraining/preprocessing_refactor.py
-/model_retraining/modelling_pipeline.py
 
 # ------------------------
 # Python cache & build files

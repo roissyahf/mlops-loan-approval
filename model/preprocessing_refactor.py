@@ -11,7 +11,7 @@ PROC_DIR.mkdir(parents=True, exist_ok=True)
 class _PreprocessData:
     """
     Callable preprocessor:
-      - __call__(df) -> (X, y)  for in-memory pipelines (used by retraining_pipeline.py)
+      - __call__(df) -> (X, y)  for in-memory pipelines
       - run_from_csv(input_csv, train_out, test_out) -> writes two CSVs
     """
 
@@ -64,7 +64,7 @@ class _PreprocessData:
         random_state: int = 42,
     ):
         """
-        Accept a single CSV, clean/split, and write 2 CSVs (train/test)
+        Accept a single CSV, clean, split, and write 2 CSVs (train/test)
         with the TARGET column included in each output.
         """
         df_raw = pd.read_csv(input_csv)

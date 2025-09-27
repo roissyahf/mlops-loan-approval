@@ -123,7 +123,7 @@ def load_model():
     
     return None
 
-# Initialize model at startup (but don't fail if it doesn't work)
+# Initialize model at startup
 try:
     print("[model-bootstrap] Starting model initialization...", flush=True)
     model = load_model()
@@ -148,7 +148,6 @@ REQUIRED_COLUMNS = [
 def predict(input_json):
     global model
     
-    # Lazy load model if not available
     if model is None:
         print("[model-bootstrap] Model not loaded, attempting to load...", flush=True)
         model = load_model()

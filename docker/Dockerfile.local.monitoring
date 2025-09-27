@@ -12,4 +12,4 @@ ENV CURR_DATA_PATH=/app/data/simulation/current_data.csv
 ENV PORT=5003
 
 EXPOSE 5003
-CMD ["python", "app.py"]
+CMD ["python", "app_dev.py"]

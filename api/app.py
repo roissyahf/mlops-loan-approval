@@ -43,7 +43,7 @@ print(json.dumps({
 
 def get_id_token():
     """
-    Fetches a Google-signed ID token for the given audience (usually the target service URL).
+    Fetches a Google-signed ID token for the given audience (the target is the service URL).
     """
     try:
         token = id_token.fetch_id_token(Request(), MODEL_SERVICE_URL)
@@ -228,5 +228,5 @@ def predict_endpoint():
 
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", 8080)) # port 8000 for API local development
+    port = int(os.getenv("PORT", 8080))
     app.run(host="0.0.0.0", port=port)

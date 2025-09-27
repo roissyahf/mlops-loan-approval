@@ -62,44 +62,42 @@
   </div>
 
   <script>
-  document.getElementById("prediction-form").addEventListener("submit", async function (e) {
-    e.preventDefault();
-    const resultDiv = document.getElementById("result");
-    resultDiv.innerHTML = "<p class='info'>🔄 Sending request...</p>";
+    document.getElementById("prediction-form").addEventListener("submit", async function (e) {
+      e.preventDefault();
+      const resultDiv = document.getElementById("result");
+      resultDiv.innerHTML = "<p class='info'>🔄 Sending request...</p>";
 
-    const formData = new FormData(e.target);
-    const payload = {};
-    formData.forEach((value, key) => (payload[key] = value));
+      const formData = new FormData(e.target);
+      const payload = {};
+      formData.forEach((value, key) => (payload[key] = value));
 
-    // Inject API URL from Flask backend via Jinja
-    const API_BASE_URL = "{{ api_url }}"; 
+      const API_BASE_URL = "http://localhost:8000";
 
-    try {
-      const response = await fetch(`${API_BASE_URL}/predict`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      try {
+        const response = await fetch(`${API_BASE_URL}/predict`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
 
-      if (!response.ok) throw new Error("API request failed");
-      const data = await response.json();
+        if (!response.ok) throw new Error("API request failed");
+        const data = await response.json();
 
-      const prediction = data.prediction;
-      const confidence = data.probabilities?.[prediction] || 0;
-      const latency = (data.latency || 0) * 1000;
+        const prediction = data.prediction;
+        const confidence = data.probabilities?.[prediction] || 0;
+        const latency = (data.latency || 0) * 1000;
 
-      resultDiv.innerHTML = `
-        <div class="result-box ${prediction === 1 ? "accepted" : "rejected"}">
-          ${prediction === 1 ? "🔥 Loan Approved" : "🚫 Loan Rejected"}
-        </div>
-        <p class="confidence">📊 Confidence Score: ${(confidence * 100).toFixed(2)}%</p>
-        <p class="latency">⏱️ Latency: ${latency.toFixed(2)} ms</p>
-      `;
-    } catch (err) {
-      resultDiv.innerHTML = `<p class="error">❌ Error: ${err.message}</p>`;
-    }
-  });
-</script>
-
+        resultDiv.innerHTML = `
+          <div class="result-box ${prediction === 1 ? "accepted" : "rejected"}">
+            ${prediction === 1 ? "🔥 Loan Approved" : "🚫 Loan Rejected"}
+          </div>
+          <p class="confidence">📊 Confidence Score: ${(confidence * 100).toFixed(2)}%</p>
+          <p class="latency">⏱️ Latency: ${latency.toFixed(2)} ms</p>
+        `;
+      } catch (err) {
+        resultDiv.innerHTML = `<p class="error">❌ Error: ${err.message}</p>`;
+      }
+    });
+  </script>
 </body>
 </html>
