@@ -182,9 +182,9 @@ class _TrainAndEvaluateModel:
             # Promote to Production stage
             client = MlflowClient()
             client.transition_model_version_stage(
-                name="XGB-retraining",
+                name="XGB-retraining", # this is MLFLOW_MODEL_NAME
                 version=model_info.registered_model_version,
-                stage="Production"
+                stage="Production" # this is MLFLOW_MODEL_STAGE
                 )
 
             logging.info(f"[train] run_id={run.info.run_id} AUC={auc:.4f} F1={f1:.4f}")

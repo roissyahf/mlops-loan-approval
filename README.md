@@ -65,6 +65,8 @@ Features include:
 
 ## 🏗️ Architecture Overview
 
+<img width="803" height="642" alt="Image" src="https://github.com/user-attachments/assets/ca6d2127-767a-4f2e-91e7-505b2c4334b4" />
+
 ### Data Flow
 
 * **Prediction**: User → Frontend → API → Model
@@ -159,75 +161,7 @@ Features include:
 
 ## ⚡ Usage
 
-### Local Development with Docker
-
-Ensure you have **Docker** and **Google Cloud CLI** installed.
-
-1. **Clone the Repository**
-
-```bash
-git clone https://github.com/roissyahf/mlops-loan-approval
-cd mlops-loan-approval
-```
-
-2. **Set up virtual environment**
-
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-3. **Install dependencies**
-
-```bash
-pip install -r requirements.txt
-```
-
-4. **Run services**
-
-```bash
-docker compose up --build
-```
-
-> In local development, all services (frontend, API, model, monitoring) can run together with Docker Compose.
-
----
-
-### Production (CI/CD + GCP)
-
-1. **CI/CD Workflows**
-   Each service has its own workflow under `.github/workflows/`.
-
-   * Builds → pushes Docker images to Artifact Registry
-   * Deploys services to Cloud Run
-   * Retraining workflow runs monthly and triggers redeployment
-
-2. **Secrets & Configuration**
-   Required secrets:
-   `GCP_PROJECT_ID`, `GCP_REGION`, `ARTIFACT_REPO`, `GCP_SA_KEY`,
-   `DAGSHUB_USERNAME`, `DAGSHUB_TOKEN`, `MLFLOW_TRACKING_URI`
-
-   Environment variables injected at deploy:
-   `MLFLOW_TRACKING_USERNAME`, `MLFLOW_TRACKING_PASSWORD`, `MLFLOW_TRACKING_URI`, `MLFLOW_EXPERIMENT_NAME`, `DAGSHUB_USERNAME`, `DAGSHUB_TOKEN`, `GCP_PROJECT_ID`, `BIGQUERY_DATASET`
-
-3. **Deployment Targets**
-
-   * `loan-frontend` → UI
-   * `loan-api` → Flask API
-   * `loan-model` → ML inference (model pulled from MLflow Registry)
-   * `loan-monitor` → Evidently drift monitoring
-
----
-
-### Dev vs Prod Matrix
-
-| Service        | Local entrypoint                    | Prod entrypoint (Cloud Run) | Dockerfile(s)                                          | Artifacts       | Key env vars             |
-| -------------- | ----------------------------------- | --------------------------- | ------------------------------------------------------ | --------------- | ------------------------ |
-| **Frontend**   | `frontend/app_dev.py` or static         | `loan-frontend`             | `Dockerfile.local.frontend`, `Dockerfile.frontend`     | —               | `API_URL`                 |
-| **API**        | `api/app_dev.py`                        | `loan-api`                  | `Dockerfile.local.api`, `Dockerfile.api`               | Uses Model service  | `MODEL_URL`      |
-| **Model**      | `model/app_dev.py`                      | `loan-model`                | `Dockerfile.local.model`, `Dockerfile.model`           | MLflow Registry | `MLFLOW_*` |
-| **Monitoring** | `monitoring/app_dev.py`                 | `loan-monitor`              | `Dockerfile.local.monitoring`, `Dockerfile.monitoring` | DVC data + logs | —                    |
-| **Retraining** | `model/retraining_pipeline_dev.py` | GitHub Actions job          | —                                                      | DVC + MLflow    | `MLFLOW_*`, `DAGSHUB_*`  |
+> 👉 For full local development and production setup instructions, see [COMMAND.md](COMMAND.md).
 
 ---
 
@@ -253,20 +187,16 @@ docker compose up --build
   * Dependencies pinned in `requirements.txt`.
   * Containerized with Docker for consistent runtime between local and production.
 
-Reproduce training with:
 
-```bash
-dvc pull data/processed/train_data.csv
-python model/retraining_pipeline_prod.py
-```
+> 👉 For full reproduce training instruction, see [COMMAND.md](COMMAND.md).
 
 ---
 
 ## 🔮 Future Work
 
+* [ ] Data, ML Model, and Code Testing
 * [ ] Add Evidently → Cloud Monitoring alerts
 * [ ] Trigger retraining on drift detection, not only schedule
-* [ ] Automated testing and validation pipelines
 
 ---
 
@@ -283,4 +213,6 @@ python model/retraining_pipeline_prod.py
 
 ## 👩‍💻 Author
 
-Built by **Roissyah Fernanda**. She acknowledges the use of AI assistance in building this project. If you find issues or want to enhance this project, feel free to open a pull request. Let’s collaborate!
+Developed by **Roissyah Fernanda**. This project benefited from the AI chatbots for generating initial code templates (which I then refined), refactoring, and documentation.
+
+Your input is valued! If you spot a bug or want to suggest an improvement, please submit a pull request. Let's collaborate to make this MLOps project even better.

@@ -10,6 +10,15 @@ permissions:
   actions: write
 
 jobs:
+  env:
+    GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+    BIGQUERY_DATASET: 'loan_prediction_dataset'
+    DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+    DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
+    MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
+    MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
+    MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/MLOps-Loan-Approval.mlflow
+
   retrain_and_deploy:
     runs-on: ubuntu-latest
     steps:
@@ -40,27 +49,14 @@ jobs:
           pip install "dvc[http]" python-dotenv mlflow
 
       - name: Configure DVC remote (DagsHub)
-        env:
-          DAGSHUB_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          DAGSHUB_TOKEN: ${{ secrets.DAGSHUB_TOKEN }}
         run: |
           dvc remote add -f dagshub https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/Loan_Approval_Model.dvc
-          dvc remote modify dagshub auth basic
-          dvc remote modify dagshub user "$DAGSHUB_USERNAME"
-          dvc remote modify --local dagshub password "$DAGSHUB_TOKEN"
-          dvc remote default dagshub
 
       - name: Pull DVC data
         run: dvc pull -v
 
       - name: Run Retraining Script
         id: run-script
-        env:
-          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-          BIGQUERY_DATASET: 'loan_prediction_dataset'
-          MLFLOW_TRACKING_USERNAME: ${{ secrets.DAGSHUB_USERNAME }}
-          MLFLOW_TRACKING_PASSWORD: ${{ secrets.DAGSHUB_TOKEN }}
-          MLFLOW_TRACKING_URI: https://dagshub.com/${{ secrets.DAGSHUB_USERNAME }}/MLOps-Loan-Approval.mlflow
         run: |
           python model/retraining_pipeline_prod.py
 
