@@ -58,7 +58,7 @@ jobs:
             --set-env-vars=MLFLOW_TRACKING_USERNAME=${{ secrets.DAGSHUB_USERNAME }}
             --set-env-vars=MLFLOW_TRACKING_PASSWORD=${{ secrets.DAGSHUB_TOKEN }}
             --set-env-vars=MLFLOW_EXPERIMENT_NAME=MLOps-Loan-Approval
-            --set-env-vars=MLFLOW_MODEL_NAME=XGB-retraining
+            --set-env-vars=MLFLOW_MODEL_NAME=XGB-best-model-manual
             --set-env-vars=MLFLOW_MODEL_STAGE=Production
             --set-env-vars=MODEL_PATH=/app/model.pkl
             --set-env-vars=PYTHONUNBUFFERED=1

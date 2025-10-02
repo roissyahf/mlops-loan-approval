@@ -18,7 +18,7 @@ RUN mkdir -p /app/models
 ENV MLFLOW_TRACKING_URI="" \
     MLFLOW_TRACKING_USERNAME="" \
     MLFLOW_TRACKING_PASSWORD="" \
-    MLFLOW_MODEL_NAME="XGB-retraining" \
+    MLFLOW_MODEL_NAME="XGB-best-model-manual" \
     MLFLOW_MODEL_STAGE="Production" \
     MODEL_PATH="/app/model.pkl" \
     PORT=8080

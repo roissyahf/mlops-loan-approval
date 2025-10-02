@@ -1,0 +1,23 @@
+name: Monitoring Periodic Update
+
+on:
+  schedule:
+    - cron: "0 0 * * *"   # every midnight UTC
+  workflow_dispatch: {}   # allow manual trigger
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+  REGION: ${{ secrets.GCP_REGION }}
+  SVC: loan-monitoring
+
+jobs:
+  trigger-monitoring:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call Monitoring Service
+        run: |
+          MONITOR_URL=$(gcloud run services describe $SVC \
+            --platform=managed --region=$REGION \
+            --format="value(status.url)")
+          curl -s "${MONITOR_URL}/drift" || true
+          curl -s "${MONITOR_URL}/tests" || true

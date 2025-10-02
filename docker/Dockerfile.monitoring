@@ -7,7 +7,7 @@ RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/*
 
 # Install deps first
 COPY monitoring/requirements.txt /tmp/requirements.txt
-RUN pip install --no-cache-dir -r /tmp/requirements.txt && pip install --no-cache-dir "dvc[http]" python-dotenv
+RUN pip install --no-cache-dir -r /tmp/requirements.txt && pip install --no-cache-dir "dvc[http]" python-dotenv google-cloud-bigquery
 
 # Copy DVC configuration
 COPY .dvc/ .dvc/
@@ -20,8 +20,7 @@ COPY data/simulation/*.dvc data/simulation/
 COPY monitoring/ /app/
 
 # Set environment variables
-ENV REF_DATA_PATH=/app/data/simulation/reference_data.csv \
-    CURR_DATA_PATH=/app/data/simulation/current_data.csv
+ENV REF_DATA_PATH=/app/data/simulation/reference_data.csv
 
 EXPOSE 8080
 

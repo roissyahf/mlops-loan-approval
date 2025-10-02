@@ -48,7 +48,7 @@ def _load_and_prepare(
     pred_col: Optional[str],
 ):
     ref_df = pd.read_csv(reference_path)
-    cur_df = pd.read_csv(current_path) #
+    cur_df = pd.read_csv(current_path)
 
     # align schemas (in-memory only)
     ref_df, cur_df = _align_columns(ref_df, cur_df)

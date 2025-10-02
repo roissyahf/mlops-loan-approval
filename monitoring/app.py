@@ -4,12 +4,14 @@ from flask_cors import CORS
 from evidently_profile import build_report, build_classification_report, suite_json, save_suite_html
 import pandas as pd
 import logging
+from google.cloud import bigquery
 
 app = Flask(__name__)
 CORS(app)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# --------- (reference data config) --------------
 # Global flags for data availability
 DATA_READY = False
 DVC_ATTEMPTED = False
@@ -82,7 +84,7 @@ def dvc_pull_async():
     except Exception as e:
         logger.error(f"[dvc] unexpected error: {e}")
 
-def resolve_path(p: str) -> str:
+def resolve_ref_path(p: str) -> str:
     """
     Make env-provided paths robust across:
     - Windows / Linux
@@ -111,10 +113,31 @@ def resolve_path(p: str) -> str:
     alt_path = os.path.normpath(os.path.join(script_dir, p))
     return alt_path
 
-# Run from project root: python monitoring/app.py
-REF_DATA_PATH = resolve_path(os.getenv("REF_DATA_PATH", "data/simulation/reference_data.csv"))
-CURR_DATA_PATH = resolve_path(os.getenv("CURR_DATA_PATH", "data/simulation/current_data.csv"))
+REF_DATA_PATH = resolve_ref_path(os.getenv("REF_DATA_PATH", "data/simulation/reference_data.csv"))
 
+# --------- (current data config) --------------
+# Current data comes from BigQuery
+CURR_BQ_PROJECT = os.getenv("GCP_PROJECT_ID", "")
+CURR_BQ_DATASET = os.getenv("BIGQUERY_DATASET", "")
+
+def load_current_from_bq() -> str:
+    """Fetch current data from BigQuery and save to temp CSV for Evidently."""
+    client = bigquery.Client()
+    query = f"SELECT * FROM `{CURR_BQ_PROJECT}.{CURR_BQ_DATASET}.prediction_events_view`"
+    df = client.query(query).to_dataframe()
+    tmp_path = "/tmp/current_data.csv"
+    df.to_csv(tmp_path, index=False)
+    return tmp_path
+
+def resolve_current_path() -> str:
+    """Switch current data between CSV (for local sim) and BigQuery (for prod)."""
+    if CURR_BQ_PROJECT and CURR_BQ_DATASET:
+        return load_current_from_bq()
+    return resolve_ref_path(os.getenv("CURR_DATA_PATH", "data/simulation/current_data.csv"))
+
+CURR_DATA_PATH = resolve_current_path()
+
+# --------- (the app) --------------
 @app.route("/", methods=["GET"])
 def index():
     return "Monitoring Service is Running", 200
@@ -154,36 +177,6 @@ def check_data_files():
     if not (os.path.exists(REF_DATA_PATH) and os.path.exists(CURR_DATA_PATH)):
         return False
     return True
-
-# --------- (for /model-drift, /model-drift.html) --------------
-@app.route("/model-drift", methods=["GET"])
-def model_drift_json():
-    if not check_data_files():
-        return jsonify({"error": "reference or current file not found", 
-                       "data_ready": DATA_READY}), 404
-    
-    try:
-        # Build classification performance report
-        report = build_classification_report(REF_DATA_PATH, CURR_DATA_PATH)
-        # Return Evidently's JSON (safer than jsonify for numpy types)
-        return Response(report.json(), mimetype="application/json")
-    except Exception as e:
-        logger.error(f"Error generating model drift report: {e}")
-        return jsonify({"error": str(e)}), 500
-
-@app.route("/model-drift.html", methods=["GET"])
-def model_drift_html():
-    if not check_data_files():
-        return jsonify({"error": "reference or current file not found"}), 404
-    
-    try:
-        report = build_classification_report(REF_DATA_PATH, CURR_DATA_PATH)
-        out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "model_drift_report.html")
-        report.save_html(out_path)
-        return send_file(out_path, mimetype="text/html")
-    except Exception as e:
-        logger.error(f"Error generating model drift HTML: {e}")
-        return jsonify({"error": str(e)}), 500
 
 # --------- (for /tests, /tests.html) --------------
 @app.route("/tests", methods=["GET"])

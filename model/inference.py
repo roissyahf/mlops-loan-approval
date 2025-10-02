@@ -18,7 +18,7 @@ def _load_from_registry_or_latest_artifact():
     uri   = os.getenv("MLFLOW_TRACKING_URI", "").strip()
     user  = os.getenv("MLFLOW_TRACKING_USERNAME", "").strip()
     pwd   = os.getenv("MLFLOW_TRACKING_PASSWORD", "").strip()
-    name  = os.getenv("MLFLOW_MODEL_NAME", "XGB-retraining").strip()
+    name  = os.getenv("MLFLOW_MODEL_NAME", "XGB-best-model-manual").strip()
     stage = os.getenv("MLFLOW_MODEL_STAGE", "Production").strip()
     exp   = os.getenv("MLFLOW_EXPERIMENT_NAME", "").strip()
 

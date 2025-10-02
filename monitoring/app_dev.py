@@ -57,26 +57,6 @@ def health():
         "cwd": os.getcwd()
     })
 
-# --------- (for /model-drift, /model-drift.html) --------------
-@app.route("/model-drift", methods=["GET"])
-def model_drift_json():
-    if not (os.path.exists(REF_DATA_PATH) and os.path.exists(CURR_DATA_PATH)):
-        return abort(404, description="reference or current file not found")
-    # Build classification performance report
-    report = build_classification_report(REF_DATA_PATH, CURR_DATA_PATH)
-    # Return Evidently's JSON (safer than jsonify for numpy types)
-    return Response(report.json(), mimetype="application/json")
-
-@app.route("/model-drift.html", methods=["GET"])
-def model_drift_html():
-    if not (os.path.exists(REF_DATA_PATH) and os.path.exists(CURR_DATA_PATH)):
-        return abort(404, description="reference or current file not found")
-    report = build_classification_report(REF_DATA_PATH, CURR_DATA_PATH)
-    out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "model_drift_report.html")
-    report.save_html(out_path)
-    return send_file(out_path, mimetype="text/html")
-
-
 # --------- (for /tests, /tests.html) --------------
 @app.route("/tests", methods=["GET"])
 def tests_json():

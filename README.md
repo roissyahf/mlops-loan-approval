@@ -40,7 +40,6 @@ Features include:
 * ✅ Containerized services with **Docker & Docker Compose**
 * ✅ CI/CD with GitHub Actions → **Cloud Run deployment**
 * ✅ Structured logs for prediction audit trail
-* ✅ Automated monthly retraining via scheduled GitHub Action
 
 ---
 
@@ -58,27 +57,28 @@ Features include:
 4. **Phase 4** – CI/CD Automation
    GitHub Actions workflows to build → push → deploy services on Cloud Run.
 
-5. **Phase 5** – Continuous Learning
+5. **Phase 5** – Continuous Retraining
    Automated retraining pipeline (scheduled monthly) → pushes new models to MLflow → triggers redeployment of model service.
+
+   > Retraining was originally planned using model predictions stored in `data/simulation/current.jsonl` (for development), and model predictions stored in BigQuery (for production). However, this approach was cancelled because those predictions do not contain true ground-truth labels, which makes retraining unreliable and potentially misleading. The project now focuses on Phase 1-4 only.
+
 
 ---
 
 ## 🏗️ Architecture Overview
 
-<img width="803" height="642" alt="Image" src="https://github.com/user-attachments/assets/ca6d2127-767a-4f2e-91e7-505b2c4334b4" />
+<img width="726" height="636" alt="Image" src="https://github.com/user-attachments/assets/ef815cd6-08a6-4e1a-ab56-3e75bad1f22d" />
 
 ### Data Flow
 
 * **Prediction**: User → Frontend → API → Model
 * **Logging**: API logs → Cloud Logging → BigQuery
-* **Retraining**: Logs + training data → retraining pipeline → MLflow Registry → redeployed model service
 * **Monitoring**: Cloud Monitoring for system metrics, Evidently for drift reports
 
 ### Automated Workflows
 
-* **Retraining**: Monthly scheduled job (GitHub Actions)
 * **Deployment**: On push to main branch
-* **Monitoring**: Manual review of Evidently reports + Cloud Monitoring alerts
+* **Monitoring**: Manual review of Evidently reports with report periodically updated daily + Cloud Monitoring alerts
 
 ---
 
@@ -93,7 +93,6 @@ Features include:
 │           model.yml					# Model service CI/CD workflow
 │           monitoring.yml				# Monitoring service CI/CD workflow
 │           orchestrate.yml				# CI/CD workflows orchestration
-│           retraining-model.yml		# Model retraining CI/CD workflow
 │
 ├───api										
 │       app.py							# Production API service
@@ -102,7 +101,6 @@ Features include:
 │
 ├───data										
 │   ├───processed
-│   │       retrain_data.csv.dvc		# Retraining data tracked with DVC
 │   │       test_data.csv.dvc			# Test data tracked with DVC
 │   │       train_data.csv.dvc			# Train data tracked with DVC
 │   ├───raw
@@ -135,7 +133,6 @@ Features include:
 ├───model										
 │   │   app.py							# Production Model service
 │   │   app_dev.py						# Local Development Model service
-│   │   convert_logs.py					# Local Development convert logs script
 │   │   inference.py					# Production inference script
 │   │   inference_dev.py				# Local Development inference script
 │   │   model.pkl.dvc					# Local Development model.pkl tracked with DVC
@@ -143,14 +140,13 @@ Features include:
 │   │   modelling_tuning.py				# Experiment model tuning script 
 │   │   preprocessing_refactor.py		# Experiment data raw preprocessing script
 │   │   requirements.txt				# Model service requirements
-│   │   retraining_pipeline_dev.py		# Local Development model retraining pipeline script
-│   │   retraining_pipeline_prod.py		# Production model retraining pipeline script
 │   │   simple_preprocessing.py			# Local Development data preprocessing for model training script
 │
 └───monitoring									
-    │   app.py							# Production Evidently Monitoring service							
+|   │   app.py							# Production Evidently Monitoring service							
 │   │   app_dev.py						# Local Development Evidently Monitoring service
-│   │   evidently_profile.py			# Evidently Monitoring service profile
+│   │   evidently_profile.py			# Production Evidently Monitoring service profile
+│   │   evidently_profile_dev.py		# Local Development Evidently Monitoring service profile
 │   │   requirements.txt				# Evidently Monitoring service requirements
 │
 ├───docker-compose.yml					# Local Development running services with docker compose
@@ -169,7 +165,7 @@ Features include:
 
 * **Data versioning**:
 
-  * Training and retraining datasets tracked with **DVC**, stored remotely in DagsHub.
+  * Training datasets tracked with **DVC**, stored remotely in DagsHub.
   * `.dvc` pointer files in Git ensure exact dataset versions can be restored with `dvc pull`.
 
 * **Model versioning**:
@@ -180,23 +176,46 @@ Features include:
 * **Experiment tracking**:
 
   * MLflow logs allow to replay experiments and compare runs.
-  * Retraining pipeline automatically logs new runs and saves the best model to MLflow.
+  * Training pipeline automatically logs new runs and saves the best model to MLflow.
 
 * **Environment consistency**:
 
   * Dependencies pinned in `requirements.txt`.
   * Containerized with Docker for consistent runtime between local and production.
 
+**To reproduce training:**
 
-> 👉 For full reproduce training instruction, see [COMMAND.md](COMMAND.md).
+```bash
+dvc pull data/processed/train_data.csv
+python model/modelling_refactor.py
+```
+
+**Note:**
+Take a look at below section in `model/modelling_refactor.py`
+
+```bash
+# Promote to Production stage
+client = MlflowClient()
+client.transition_model_version_stage(
+    name="XGB-best-model-manual", # this is MLFLOW_MODEL_NAME
+    version=model_info.registered_model_version,
+    stage="Production" # this is MLFLOW_MODEL_NAME
+    )
+```
+
+Ensure the following variables are match for production, especially in: `model/inference.py`, `docker/Dockerfile.model`, and also in `.github/workflows/model.yml`
+```bash
+MLFLOW_MODEL_NAME # give the same value as name
+MLFLOW_MODEL_STAGE # give the same value as stage
+```
 
 ---
 
 ## 🔮 Future Work
 
 * [ ] Data, ML Model, and Code Testing
-* [ ] Add Evidently → Cloud Monitoring alerts
-* [ ] Trigger retraining on drift detection, not only schedule
+* [ ] Add Evidently → Cloud Monitoring alerts for drift
+* [ ] Retraining configuration with ground-truth labels
 
 ---
 
