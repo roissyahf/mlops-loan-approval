@@ -8,7 +8,7 @@ RUN pip install -r requirements.txt
 
 # Env-configurable data paths
 ENV REF_DATA_PATH=/app/data/simulation/reference_data.csv
-ENV CURR_DATA_PATH=/app/data/simulation/current_data.csv
+ENV CURR_DATA_PATH=/app/data/simulation/prediction_dev_log.csv
 ENV PORT=5003
 
 EXPOSE 5003

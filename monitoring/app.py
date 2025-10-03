@@ -1,10 +1,15 @@
-import os, subprocess, sys
-from flask import Flask, jsonify, send_file, abort, Response
+import os, subprocess
+from flask import Flask, jsonify, send_file, Response
 from flask_cors import CORS
-from evidently_profile import build_report, build_classification_report, suite_json, save_suite_html
+from evidently_profile import build_report, suite_json, save_suite_html 
 import pandas as pd
 import logging
 from google.cloud import bigquery
+from dotenv import load_dotenv, find_dotenv
+import tempfile
+
+# load environment variables from .env file
+load_dotenv(find_dotenv())
 
 app = Flask(__name__)
 CORS(app)
@@ -33,7 +38,7 @@ def dvc_pull_async():
         logger.error("[dvc] DAGSHUB_USERNAME / DAGSHUB_TOKEN not set")
         return
 
-    try:   
+    try:
         # Initialize git repo if it doesn't exist (required for DVC)
         if not os.path.exists('.git'):
             logger.info("[dvc] Initializing git repository...")
@@ -70,9 +75,8 @@ def dvc_pull_async():
 
         # Pull only what this service needs with timeout
         subprocess.run(["dvc","pull",
-                        "data/simulation/reference_data.csv",
-                        "data/simulation/current_data.csv"], 
-                      check=True, timeout=120)
+                         "data/simulation/reference_data.csv"], 
+                       check=True, timeout=120)
 
         logger.info("[dvc] pull completed successfully")
         DATA_READY = True
@@ -86,29 +90,20 @@ def dvc_pull_async():
 
 def resolve_ref_path(p: str) -> str:
     """
-    Make env-provided paths robust across:
-    - Windows / Linux
-    - running from project root vs monitoring/
-    - absolute vs relative
+    Make env-provided paths robust.
     """
     if p is None:
         return ""
     p = p.strip()
-
-    # Leave GCS URIs or other schemes alone
     if p.startswith("gs://"):
         return p
-
-    # Absolute path: Normalize and return.
     if os.path.isabs(p):
         return os.path.normpath(p)
 
-    # Try relative to current working directory
     cwd_path = os.path.normpath(os.path.join(os.getcwd(), p))
     if os.path.exists(cwd_path):
         return cwd_path
 
-    # Fallback: relative to this file's directory
     script_dir = os.path.dirname(os.path.abspath(__file__))
     alt_path = os.path.normpath(os.path.join(script_dir, p))
     return alt_path
@@ -117,25 +112,73 @@ REF_DATA_PATH = resolve_ref_path(os.getenv("REF_DATA_PATH", "data/simulation/ref
 
 # --------- (current data config) --------------
 # Current data comes from BigQuery
-CURR_BQ_PROJECT = os.getenv("GCP_PROJECT_ID", "")
-CURR_BQ_DATASET = os.getenv("BIGQUERY_DATASET", "")
+CURR_BQ_PROJECT = os.getenv("GCP_PROJECT_ID")
+CURR_BQ_DATASET = "loan_prediction_dataset"
+CURR_BQ_TABLE = "prediction_events_view"
 
-def load_current_from_bq() -> str:
-    """Fetch current data from BigQuery and save to temp CSV for Evidently."""
-    client = bigquery.Client()
-    query = f"SELECT * FROM `{CURR_BQ_PROJECT}.{CURR_BQ_DATASET}.prediction_events_view`"
-    df = client.query(query).to_dataframe()
-    tmp_path = "/tmp/current_data.csv"
+# Global path for current data - initialized to None (fetched on demand)
+CURR_DATA_PATH = None
+
+def fetch_current_from_bq_to_csv() -> str:
+    """Pull current rows from BigQuery with enhanced debugging."""
+    if not (CURR_BQ_PROJECT and CURR_BQ_DATASET and CURR_BQ_TABLE):
+        raise RuntimeError("Missing envs: GCP_PROJECT_ID / BIGQUERY_DATASET / BIGQUERY_TABLE")
+
+    bq_id = f"{CURR_BQ_PROJECT}.{CURR_BQ_DATASET}.{CURR_BQ_TABLE}"
+    query = f"""
+        SELECT
+            person_age,
+            person_income,
+            loan_amnt,
+            loan_percent_income,
+            loan_int_rate,
+            credit_score,
+            previous_loan_defaults_on_file,
+            prediction
+        FROM `{bq_id}`
+    """
+    
+    logger.info(f"[bq] Fetching current from {bq_id}")
+    logger.info(f"[bq] Query: {query[:100]}...")  # Log first 100 chars
+    
+    try:
+        client = bigquery.Client(project=CURR_BQ_PROJECT)
+        logger.info("[bq] Client created successfully")
+        
+        # Run query
+        query_job = client.query(query)
+        logger.info(f"[bq] Query job started: {query_job.job_id}")
+        
+        # Wait for results with timeout
+        df = query_job.result(timeout=60).to_dataframe()  # Add 60s timeout
+        logger.info(f"[bq] Query completed, fetched {len(df)} rows")
+        logger.info(f"[bq-DEBUG] First 5 rows:\n{df.head()}")
+        logger.info(f"[bq-DEBUG] Non-null counts:\n{df.count()}")
+        
+    except Exception as e:
+        logger.error(f"[bq] FETCH FAILED - Error type: {type(e).__name__}")
+        logger.error(f"[bq] Error message: {str(e)}")
+        import traceback
+        logger.error(f"[bq] Full traceback:\n{traceback.format_exc()}")
+        raise
+
+    if df.empty:
+        raise ValueError(f"[bq] No rows returned from {bq_id}")
+
+    # Use a persistent temp path or create the directory
+    tmp_dir = tempfile.gettempdir()
+    tmp_path = os.path.join(tmp_dir, "current_bq_data.csv")
+    
     df.to_csv(tmp_path, index=False)
+    logger.info(f"[bq] Saved {len(df)} rows to {tmp_path}")
+    
+    # Verify the file was created
+    if not os.path.exists(tmp_path):
+        raise RuntimeError(f"[bq] Failed to create CSV file at {tmp_path}")
+    
+    logger.info(f"[bq] File verified at {tmp_path}, size: {os.path.getsize(tmp_path)} bytes")
     return tmp_path
 
-def resolve_current_path() -> str:
-    """Switch current data between CSV (for local sim) and BigQuery (for prod)."""
-    if CURR_BQ_PROJECT and CURR_BQ_DATASET:
-        return load_current_from_bq()
-    return resolve_ref_path(os.getenv("CURR_DATA_PATH", "data/simulation/current_data.csv"))
-
-CURR_DATA_PATH = resolve_current_path()
 
 # --------- (the app) --------------
 @app.route("/", methods=["GET"])
@@ -144,26 +187,33 @@ def index():
 
 @app.route("/health", methods=["GET"])
 def health():
-    """
-    Always return healthy for Cloud Run startup - data issues are not fatal
-    """
     ref_exists = os.path.exists(REF_DATA_PATH)
-    curr_exists = os.path.exists(CURR_DATA_PATH)
-    
-    # Try DVC pull if not attempted and data missing
-    if not DATA_READY and not DVC_ATTEMPTED and (not ref_exists or not curr_exists):
+
+    # DVC for reference only
+    if not DATA_READY and not DVC_ATTEMPTED and not ref_exists:
         dvc_pull_async()
-        # Re-check after attempt
         ref_exists = os.path.exists(REF_DATA_PATH)
-        curr_exists = os.path.exists(CURR_DATA_PATH)
-    
-    status = "ok"
+
+    bq_ok = False
+    bq_error = None
+    if CURR_BQ_PROJECT and CURR_BQ_DATASET and CURR_BQ_TABLE:
+        try:
+            client = bigquery.Client(project=CURR_BQ_PROJECT)
+            client.query(
+                f"SELECT 1 FROM `{CURR_BQ_PROJECT}.{CURR_BQ_DATASET}.{CURR_BQ_TABLE}` LIMIT 1"
+            ).result()
+            bq_ok = True
+        except Exception as e:
+            bq_error = str(e).split('\n')[0] 
+            logger.error(f"[bq] health check failed: {e}")
+
     return jsonify({
-        "status": status,
+        "status": "ok",
         "ref": REF_DATA_PATH,
         "ref_exists": ref_exists,
-        "curr": CURR_DATA_PATH,
-        "curr_exists": curr_exists,
+        "bq_mode": True,
+        "bq_ok": bq_ok,
+        "bq_error": bq_error,
         "cwd": os.getcwd(),
         "data_ready": DATA_READY,
         "dvc_attempted": DVC_ATTEMPTED
@@ -171,18 +221,42 @@ def health():
 
 def check_data_files():
     """Helper to ensure data is available before processing"""
+    global CURR_DATA_PATH 
+
+    # Check/Pull DVC data
     if not DATA_READY and not DVC_ATTEMPTED:
         dvc_pull_async()
+
+    # Check/Fetch BQ data (Current Data)
+    if CURR_DATA_PATH is None:
+        try:
+            logger.info("[data] Attempting to fetch current data from BigQuery...")
+            CURR_DATA_PATH = fetch_current_from_bq_to_csv()
+            logger.info(f"[data] Current data path set to: {CURR_DATA_PATH}")
+        except Exception as e:
+            # Log the actual error instead of silently passing
+            logger.error(f"[data] Failed to fetch from BigQuery: {e}")
+            import traceback
+            logger.error(traceback.format_exc())
+
+    # Final check for both files
+    ref_file_exists = os.path.exists(REF_DATA_PATH)
+    curr_file_exists = CURR_DATA_PATH and os.path.exists(CURR_DATA_PATH)
     
-    if not (os.path.exists(REF_DATA_PATH) and os.path.exists(CURR_DATA_PATH)):
+    if not (ref_file_exists and curr_file_exists):
+        if not ref_file_exists:
+             logger.error(f"[data] Missing reference file: {REF_DATA_PATH}")
+        if not curr_file_exists:
+             logger.error(f"[data] Missing current file: {CURR_DATA_PATH}")
         return False
+        
     return True
 
 # --------- (for /tests, /tests.html) --------------
 @app.route("/tests", methods=["GET"])
 def tests_json():
     if not check_data_files():
-        return jsonify({"error": "reference or current file not found"}), 404
+        return jsonify({"error": "Reference or current file not found (DVC/BQ failure). Check console logs for details."}), 404
     
     try:
         return Response(suite_json(REF_DATA_PATH, CURR_DATA_PATH), mimetype="application/json")
@@ -193,7 +267,7 @@ def tests_json():
 @app.route("/tests.html", methods=["GET"])
 def tests_html():
     if not check_data_files():
-        return jsonify({"error": "reference or current file not found"}), 404
+        return jsonify({"error": "Reference or current file not found (DVC/BQ failure). Check console logs for details."}), 404
     
     try:
         out_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "drift_tests.html")
@@ -207,7 +281,7 @@ def tests_html():
 @app.route("/drift", methods=["GET"])
 def drift_json():
     if not check_data_files():
-        return jsonify({"error": "reference or current file not found"}), 404
+        return jsonify({"error": "Reference or current file not found (DVC/BQ failure). Check console logs for details."}), 404
     
     try:
         report = build_report(REF_DATA_PATH, CURR_DATA_PATH)
@@ -217,10 +291,11 @@ def drift_json():
         logger.error(f"Error generating drift report: {e}")
         return jsonify({"error": str(e)}), 500
 
+
 @app.route("/drift.html", methods=["GET"])
 def drift_html():
     if not check_data_files():
-        return jsonify({"error": "reference or current file not found"}), 404
+        return jsonify({"error": "Reference or current file not found (DVC/BQ failure). Check console logs for details."}), 404
     
     try:
         report = build_report(REF_DATA_PATH, CURR_DATA_PATH)
@@ -232,9 +307,9 @@ def drift_html():
         return jsonify({"error": str(e)}), 500
 
 if __name__ == "__main__":
-    port = int(os.getenv("PORT", "8080"))  # Use PORT env var from Cloud Run
+    port = int(os.getenv("PORT", "8080")) 
     logger.info(f"Starting monitoring service on port {port}")
     logger.info(f"REF_DATA_PATH: {REF_DATA_PATH}")
-    logger.info(f"CURR_DATA_PATH: {CURR_DATA_PATH}")
-    
+    logger.info(f"CURR from BQ? {'yes' if (CURR_BQ_PROJECT and CURR_BQ_DATASET and CURR_BQ_TABLE) else 'no'}")
+
     app.run(host="0.0.0.0", port=port)

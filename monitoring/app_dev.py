@@ -1,8 +1,8 @@
 import os
 from flask import Flask, jsonify, send_file, abort, Response
 from flask_cors import CORS
-from evidently_profile import build_report, build_classification_report, suite_json, save_suite_html
-import pandas as pd
+from evidently_profile import build_report, suite_json, save_suite_html
+from convert_dev_logs import convert_jsonl_to_csv
 
 
 app = Flask(__name__)
@@ -40,8 +40,13 @@ def resolve_path(p: str) -> str:
 
 
 REF_DATA_PATH = resolve_path(os.getenv("REF_DATA_PATH", "data/simulation/reference_data.csv"))
-CURR_DATA_PATH = resolve_path(os.getenv("CURR_DATA_PATH", "data/simulation/current_data.csv"))
+curr_proceed = convert_jsonl_to_csv("data/simulation/current.jsonl", "data/simulation/prediction_dev_log.csv")
+CURR_DATA_PATH = resolve_path(os.getenv("CURR_DATA_PATH", curr_proceed))
 
+
+@app.route("/", methods=["GET"])
+def index():
+    return "Monitoring Service is Running", 200
 
 @app.route("/health", methods=["GET"])
 def health():

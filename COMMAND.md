@@ -27,7 +27,11 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. **Run services**
+4. **Run `model/modelling_refactor`**
+
+By running the script, you will get `model.pkl` locally. It's crucial for successful model app running and also for the whole services (api and frontend).
+
+5. **Run services**
 
 ```bash
 docker compose up --build
@@ -35,10 +39,10 @@ docker compose up --build
 
 > In local development, all services (frontend, API, model, monitoring) can run together with Docker Compose.
 
-5. **Access Services**
+6. **Access Services**
 
-- Model: `http://localhost:5000`
-- API: `http://localhost:8000`
+- Model: `http://localhost:5000/health`
+- API: `http://localhost:8000/health`
 - Frontend: `http://localhost:3001`
 - Monitoring: `http://localhost:5003`
 
@@ -95,7 +99,7 @@ Add all required keys under repo → Settings → Secrets and variables → Acti
 `GCP_PROJECT_ID`, `GCP_REGION`, `ARTIFACT_REPO`, `GCP_SA_KEY`, `DAGSHUB_USERNAME`, `DAGSHUB_TOKEN`, `MLFLOW_TRACKING_URI`
 
 Environment variables injected at deploy:
-   `MLFLOW_TRACKING_USERNAME`, `MLFLOW_TRACKING_PASSWORD`, `MLFLOW_TRACKING_URI`, `MLFLOW_EXPERIMENT_NAME`, `DAGSHUB_USERNAME`, `DAGSHUB_TOKEN`, `GCP_PROJECT_ID`, `BIGQUERY_DATASET`
+   `MLFLOW_TRACKING_USERNAME`, `MLFLOW_TRACKING_PASSWORD`, `MLFLOW_TRACKING_URI`, `MLFLOW_EXPERIMENT_NAME`, `DAGSHUB_USERNAME`, `DAGSHUB_TOKEN`, `GCP_PROJECT_ID`
 
 6. **CI/CD Workflows**
 

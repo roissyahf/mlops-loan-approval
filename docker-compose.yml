@@ -40,7 +40,7 @@ services:
       - "5003:5003"
     environment:
       - REF_DATA_PATH=/app/data/simulation/reference_data.csv
-      - CURR_DATA_PATH=/app/data/simulation/current_data.csv
+      - CURR_DATA_PATH=/app/data/simulation/prediction_dev_log.csv
       - PORT=5003
     volumes:
       - ./data:/app/data:rw

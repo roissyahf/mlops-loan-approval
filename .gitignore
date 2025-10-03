@@ -17,6 +17,8 @@
 /monitoring/drift_report.html
 /monitoring/drift_tests.html
 /monitoring/model_drift_report.html
+/monitoring/test_bq.py
+/monitoring/check_dtypes_reference.py
 
 /data/current/current.jsonl
 

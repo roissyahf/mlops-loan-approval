@@ -2,8 +2,8 @@ name: Monitoring Periodic Update
 
 on:
   schedule:
-    - cron: "0 0 * * *"   # every midnight UTC
-  workflow_dispatch: {}   # allow manual trigger
+    - cron: "0 0 * * *"    # daily at 00:00 UTC
+  workflow_dispatch: {}     # manual trigger
 
 env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
@@ -13,11 +13,43 @@ env:
 jobs:
   trigger-monitoring:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
-      - name: Call Monitoring Service
+      - name: Checkout (needed by some actions)
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Set up gcloud CLI
+        uses: google-github-actions/setup-gcloud@v1
+
+      - name: Resolve Cloud Run URL
+        id: url
         run: |
-          MONITOR_URL=$(gcloud run services describe $SVC \
-            --platform=managed --region=$REGION \
-            --format="value(status.url)")
-          curl -s "${MONITOR_URL}/drift" || true
-          curl -s "${MONITOR_URL}/tests" || true
+          MONITOR_URL="$(gcloud run services describe "$SVC" \
+            --region="$REGION" --format='value(status.url)')"
+          echo "MONITOR_URL=$MONITOR_URL"
+          echo "monitor_url=$MONITOR_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Trigger /drift (JSON)
+        run: |
+          curl -sS -m 120 "${{ steps.url.outputs.monitor_url }}/drift" \
+            -H "Accept: application/json" || true
+
+      - name: Trigger /tests (JSON)
+        run: |
+          curl -sS -m 120 "${{ steps.url.outputs.monitor_url }}/tests" \
+            -H "Accept: application/json" || true
+
+      - name: Trigger /drift.html
+        run: |
+          curl -sS -m 120 "${{ steps.url.outputs.monitor_url }}/drift.html" || true
+
+      - name: Trigger /tests.html
+        run: |
+          curl -sS -m 120 "${{ steps.url.outputs.monitor_url }}/tests.html" || true
