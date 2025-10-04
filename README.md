@@ -87,12 +87,13 @@ Features include:
 ```
 .
 ├───.github/workflows							
-│           api.yml						# API service CI/CD workflow
-│           dvc-push.yml				# DVC CI/CD workflow
-│           frontend.yml				# Frontend service CI/CD workflow
-│           model.yml					# Model service CI/CD workflow
-│           monitoring.yml				# Monitoring service CI/CD workflow
-│           orchestrate.yml				# CI/CD workflows orchestration
+│           api.yml							# API service CI/CD workflow
+│           dvc-push.yml					# DVC CI/CD workflow
+│           frontend.yml					# Frontend service CI/CD workflow
+│           model.yml						# Model service CI/CD workflow
+│           monitoring.yml					# Monitoring service CI/CD workflow
+│           orchestrate.yml					# CI/CD workflows orchestration
+|           monitoring-periodic-update.yml   # Periodic update of Monitoring service CI/CD workflow
 │
 ├───api										
 │       app.py							# Production API service
@@ -107,7 +108,7 @@ Features include:
 │   │       loan_data.csv.dvc			# Raw data tracked with DVC
 │   └───simulation
 │           current.jsonl.dvc			# Prediction result JSONL tracked with DVC
-│           current_data.csv.dvc		# Evidently current data tracked with DVC
+|           prediction_dev_log.csv.dvc  # Evidently current data tracked with DVC
 │           reference_data.csv.dvc		# Evidently reference data tracked with DVC
 │
 ├───docker										
@@ -140,13 +141,12 @@ Features include:
 │   │   modelling_tuning.py				# Experiment model tuning script 
 │   │   preprocessing_refactor.py		# Experiment data raw preprocessing script
 │   │   requirements.txt				# Model service requirements
-│   │   simple_preprocessing.py			# Local Development data preprocessing for model training script
 │
 └───monitoring									
-|   │   app.py							# Production Evidently Monitoring service							
+│   │   app.py							# Production Evidently Monitoring service							
 │   │   app_dev.py						# Local Development Evidently Monitoring service
-│   │   evidently_profile.py			# Production Evidently Monitoring service profile
-│   │   evidently_profile_dev.py		# Local Development Evidently Monitoring service profile
+│   │   convert_dev_logs.py        		# Local Development converting current.jsonl logs
+│   │   evidently_profile.py			# Evidently Monitoring service profile
 │   │   requirements.txt				# Evidently Monitoring service requirements
 │
 ├───docker-compose.yml					# Local Development running services with docker compose

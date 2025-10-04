@@ -45,11 +45,3 @@ jobs:
         run: |
           curl -sS -m 120 "${{ steps.url.outputs.monitor_url }}/tests" \
             -H "Accept: application/json" || true
-
-      - name: Trigger /drift.html
-        run: |
-          curl -sS -m 120 "${{ steps.url.outputs.monitor_url }}/drift.html" || true
-
-      - name: Trigger /tests.html
-        run: |
-          curl -sS -m 120 "${{ steps.url.outputs.monitor_url }}/tests.html" || true
