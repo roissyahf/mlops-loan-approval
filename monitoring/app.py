@@ -114,7 +114,7 @@ REF_DATA_PATH = resolve_ref_path(os.getenv("REF_DATA_PATH", "data/simulation/ref
 # Current data comes from BigQuery
 CURR_BQ_PROJECT = os.getenv("GCP_PROJECT_ID")
 CURR_BQ_DATASET = "loan_prediction_dataset"
-CURR_BQ_TABLE = "prediction_events_view"
+CURR_BQ_TABLE = "prediction_events_clean" # table changed, the schema has enforced
 
 # Global path for current data - initialized to None (fetched on demand)
 CURR_DATA_PATH = None
@@ -127,7 +127,7 @@ def fetch_current_from_bq_to_csv() -> str:
     bq_id = f"{CURR_BQ_PROJECT}.{CURR_BQ_DATASET}.{CURR_BQ_TABLE}"
     query = f"""
         SELECT
-            person_age,
+            person_age, 
             person_income,
             loan_amnt,
             loan_percent_income,

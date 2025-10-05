@@ -190,7 +190,6 @@ dvc pull data/processed/train_data.csv
 python model/modelling_refactor.py
 ```
 
-**Note:**
 Take a look at below section in `model/modelling_refactor.py`
 
 ```bash
