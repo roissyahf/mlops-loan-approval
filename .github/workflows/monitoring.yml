@@ -53,7 +53,7 @@ jobs:
             GCP_PROJECT_ID=${{ secrets.GCP_PROJECT_ID }}
             GOOGLE_CLOUD_PROJECT=${{ secrets.GCP_PROJECT_ID }}
             BIGQUERY_DATASET=loan_prediction_dataset
-            BIGQUERY_TABLE=prediction_events_view
+            BIGQUERY_TABLE=prediction_events_clean
           flags: >
             --ingress=all
             --allow-unauthenticated
