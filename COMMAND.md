@@ -27,11 +27,26 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-4. **Run `model/modelling_refactor`**
+4. **Configure DVC remote**
 
-By running the script, you will get `model.pkl` locally. It's crucial for successful model app running and also for the whole services (api and frontend).
+You must configure DVC to know where the data is stored—your DagsHub remote. You will be prompted for your DagsHub Username and DagsHub Token when DVC needs to pull the data.
 
-5. **Run services**
+```bash
+dvc remote add dagshub_remote https://dagshub.com/roissyahfk/Loan_Approval_Model.dvc
+dvc remote default dagshub_remote
+```
+
+5. **Pull the data**
+
+```bash
+dvc pull
+```
+
+6. **Run `model/modelling_refactor`**
+
+By running the script, you will get `model.pkl` locally. It's crucial for successful model, api, and frontend app running.
+
+7. **Run services**
 
 ```bash
 docker compose up --build
@@ -39,7 +54,7 @@ docker compose up --build
 
 > In local development, all services (frontend, API, model, monitoring) can run together with Docker Compose.
 
-6. **Access Services**
+8. **Access Services**
 
 - Model: `http://localhost:5000/health`
 - API: `http://localhost:8000/health`

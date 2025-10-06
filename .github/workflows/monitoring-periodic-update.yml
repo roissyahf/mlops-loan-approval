@@ -9,6 +9,7 @@ env:
   PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
   REGION: ${{ secrets.GCP_REGION }}
   SVC: loan-monitoring
+  CUTOFF_UTC: "2025-10-08"   # last day i want it to run
 
 jobs:
   trigger-monitoring:
@@ -17,6 +18,17 @@ jobs:
       contents: read
       id-token: write
     steps:
+      - name: Stop after cutoff date
+        id: gate
+        run: |
+          now=$(date -u +%F)
+          echo "Now: $now  Cutoff: $CUTOFF_UTC"
+          if [[ "$now" > "$CUTOFF_UTC" ]]; then
+            echo "run=no" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=yes" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout (needed by some actions)
         uses: actions/checkout@v4
 

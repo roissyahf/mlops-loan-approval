@@ -60,7 +60,7 @@ Features include:
 5. **Phase 5** – Continuous Retraining
    Automated retraining pipeline (scheduled monthly) → pushes new models to MLflow → triggers redeployment of model service.
 
-   > Retraining was originally planned using model predictions stored in `data/simulation/current.jsonl` (for development), and model predictions stored in BigQuery (for production). However, this approach was cancelled because those predictions do not contain true ground-truth labels, which makes retraining unreliable and potentially misleading. The project now focuses on Phase 1-4 only.
+   > Retraining was originally planned using model predictions stored in `data/simulation/current.jsonl` (for development), and model prediction logs stored in BigQuery (for production). However, this approach was cancelled because those predictions do not contain true ground-truth labels, which makes retraining unreliable and potentially misleading. The project now focuses on Phase 1-4 only.
 
 
 ---
@@ -78,7 +78,7 @@ Features include:
 ### Automated Workflows
 
 * **Deployment**: On push to main branch
-* **Monitoring**: Manual review of Evidently reports with report periodically updated daily + Cloud Monitoring alerts
+* **Monitoring**: Manual review of Evidently reports with report periodically updated daily + Cloud Monitoring alerts (only for system metrics)
 
 ---
 
@@ -107,8 +107,8 @@ Features include:
 │   ├───raw
 │   │       loan_data.csv.dvc			# Raw data tracked with DVC
 │   └───simulation
-│           current.jsonl.dvc			# Prediction result JSONL tracked with DVC
-|           prediction_dev_log.csv.dvc  # Evidently current data tracked with DVC
+│           current.jsonl.dvc			# Local Development Prediction result JSONL tracked with DVC
+|           prediction_dev_log.csv.dvc  # Local Development Evidently current data tracked with DVC
 │           reference_data.csv.dvc		# Evidently reference data tracked with DVC
 │
 ├───docker										
@@ -198,7 +198,7 @@ client = MlflowClient()
 client.transition_model_version_stage(
     name="XGB-best-model-manual", # this is MLFLOW_MODEL_NAME
     version=model_info.registered_model_version,
-    stage="Production" # this is MLFLOW_MODEL_NAME
+    stage="Production" # this is MLFLOW_MODEL_STAGE
     )
 ```
 
