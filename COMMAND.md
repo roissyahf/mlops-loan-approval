@@ -29,7 +29,7 @@ pip install -r requirements.txt
 
 4. **Configure DVC remote**
 
-You must configure DVC to know where the data is stored—your DagsHub remote. You will be prompted for your DagsHub Username and DagsHub Token when DVC needs to pull the data.
+You must configure DVC to know where the data is stored your DagsHub remote. You will be prompted for your DagsHub Username and DagsHub Token when DVC needs to pull the data.
 
 ```bash
 dvc remote add dagshub_remote https://dagshub.com/roissyahfk/Loan_Approval_Model.dvc

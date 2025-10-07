@@ -1,8 +1,12 @@
 # MLOps Loan Approval Prediction System
 
-A production-ready ML system that predicts **loan approval** using applicant information such as income, age, and credit score.
+Manual loan approval processes in financial institutions are often slow and inconsistent, making automation both a technical and operational challenge. This project demonstrates how machine learning can automate and standardize such decisions, backed by an **end-to-end MLOps workflow**: data versioning, model training, experiment tracking, monitoring, CI/CD, and deployment on Google Cloud Run.
 
-The project demonstrates an **end-to-end MLOps workflow**: data versioning, model training, experiment tracking, monitoring, CI/CD, and deployment on Google Cloud Run.
+**Project Constraints:**
+
+- Built as a portfolio project using a GCP free trial, so deployed services will be revoked after the trial period.
+- No automated testing yet for model, data, or API components.
+- Designed for cost efficiency rather than full-scale production scalability.
 
 ---
 
@@ -231,6 +235,8 @@ MLFLOW_MODEL_STAGE # give the same value as stage
 
 ## 👩‍💻 Author
 
-Developed by **Roissyah Fernanda**. This project benefited from the AI chatbots for generating initial code templates (which I then refined), refactoring, and documentation.
+This project was built by Roissyah Fernanda, as part of a personal initiative to explore end-to-end MLOps system design, from development to production deployment.
 
-Your input is valued! If you spot a bug or want to suggest an improvement, please submit a pull request. Let's collaborate to make this MLOps project even better.
+Some parts of the implementation and documentation were assisted by AI tools (e.g., for code refactoring, formatting, and technical writing support), while all system design, integration, and decision-making were independently developed by the author.
+
+> Contributions, feedback, or collaboration requests are always welcome. Feel free to open an issue or submit a pull request!
